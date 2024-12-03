@@ -18,7 +18,7 @@ module W11 (
     parameter [8*16-1:0] TEXT_STRING_UPPER = "Hello, World!   ";
 
     // Lower line text: Custom fonts and spaces
-    parameter [8*16-1:0] TEXT_STRING_LOWER = {8'h00, 8'h01, 8'h02, 8'h03, 8'h04, "     "};
+    parameter [8*16-1:0] TEXT_STRING_LOWER = {8'h00, 8'h01, 8'h02, 8'h03, 8'h04, "           "};
 
     // Text LCD controller instance
     tlcd_controller lcd_inst (
