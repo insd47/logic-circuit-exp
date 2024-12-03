@@ -1,6 +1,6 @@
 module tlcd_controller(
     input wire RESETN,                      // Active low reset
-    input wire CLK,                         // System clock
+    input wire CLK,                         // System clock (1 MHz)
     input wire ENABLE,                      // Start signal
     output reg TLCD_E,                      // LCD E pin
     output reg TLCD_RS,                     // LCD RS pin
@@ -10,30 +10,36 @@ module tlcd_controller(
     input wire [8*16-1:0] TEXT_STRING_LOWER // Lower line text (16 bytes)
 );
 
+    // Timing parameters (in clock cycles)
+    parameter E_PULSE_WIDTH = 1;    // 1 μs pulse width for E
+    parameter EXEC_TIME = 40;       // 40 μs execution time for most commands
+    parameter CLEAR_EXEC_TIME = 1640; // 1.64 ms execution time for clear display
+
     // State definition
-    reg [3:0] STATE;
-    parameter IDLE = 4'd0,
-              FUNCTION_SET = 4'd1,
-              FUNCTION_SET_WAIT = 4'd2,
-              DISP_ONOFF = 4'd3,
-              DISP_ONOFF_WAIT = 4'd4,
-              ENTRY_MODE = 4'd5,
-              ENTRY_MODE_WAIT = 4'd6,
-              LINE1_ADDR = 4'd7,
-              LINE1_ADDR_WAIT = 4'd8,
-              LINE1_WRITE = 4'd9,
-              LINE1_WRITE_WAIT = 4'd10,
-              LINE2_ADDR = 4'd11,
-              LINE2_ADDR_WAIT = 4'd12,
-              LINE2_WRITE = 4'd13,
-              LINE2_WRITE_WAIT = 4'd14,
-              DONE = 4'd15;
+    reg [4:0] STATE;
+    parameter IDLE = 5'd0,
+              FUNCTION_SET = 5'd1,
+              FUNCTION_SET_WAIT = 5'd2,
+              DISP_ONOFF = 5'd3,
+              DISP_ONOFF_WAIT = 5'd4,
+              ENTRY_MODE = 5'd5,
+              ENTRY_MODE_WAIT = 5'd6,
+              CLEAR_DISP = 5'd7,
+              CLEAR_DISP_WAIT = 5'd8,
+              LINE1_ADDR = 5'd9,
+              LINE1_ADDR_WAIT = 5'd10,
+              LINE1_WRITE = 5'd11,
+              LINE1_WRITE_WAIT = 5'd12,
+              LINE2_ADDR = 5'd13,
+              LINE2_ADDR_WAIT = 5'd14,
+              LINE2_WRITE = 5'd15,
+              LINE2_WRITE_WAIT = 5'd16,
+              DONE = 5'd17;
 
     reg [15:0] CNT;
     reg [4:0] char_index;
     reg prev_ENABLE;
 
-    // State machine and control signals
     always @(posedge CLK or posedge RESETN) begin
         if (RESETN) begin
             STATE <= IDLE;
@@ -41,8 +47,8 @@ module tlcd_controller(
             char_index <= 0;
             prev_ENABLE <= 0;
             TLCD_E <= 1'b0;
-            TLCD_RS <= 1'b1;
-            TLCD_RW <= 1'b1;
+            TLCD_RS <= 1'b0;
+            TLCD_RW <= 1'b0;
             TLCD_DATA <= 8'b00000000;
         end else begin
             prev_ENABLE <= ENABLE;
@@ -63,11 +69,13 @@ module tlcd_controller(
                     STATE <= FUNCTION_SET_WAIT;
                 end
                 FUNCTION_SET_WAIT: begin
-                    if (CNT == 1) begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
                         TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= EXEC_TIME) begin
+                        CNT <= 0;
                         STATE <= DISP_ONOFF;
-                    end else begin
-                        CNT <= CNT + 1;
                     end
                 end
                 DISP_ONOFF: begin
@@ -79,11 +87,13 @@ module tlcd_controller(
                     STATE <= DISP_ONOFF_WAIT;
                 end
                 DISP_ONOFF_WAIT: begin
-                    if (CNT == 1) begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
                         TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= EXEC_TIME) begin
+                        CNT <= 0;
                         STATE <= ENTRY_MODE;
-                    end else begin
-                        CNT <= CNT + 1;
                     end
                 end
                 ENTRY_MODE: begin
@@ -95,11 +105,31 @@ module tlcd_controller(
                     STATE <= ENTRY_MODE_WAIT;
                 end
                 ENTRY_MODE_WAIT: begin
-                    if (CNT == 1) begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
                         TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= EXEC_TIME) begin
+                        CNT <= 0;
+                        STATE <= CLEAR_DISP;
+                    end
+                end
+                CLEAR_DISP: begin
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
+                    TLCD_DATA <= 8'b00000001; // Clear Display
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= CLEAR_DISP_WAIT;
+                end
+                CLEAR_DISP_WAIT: begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
+                        TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= CLEAR_EXEC_TIME) begin
+                        CNT <= 0;
                         STATE <= LINE1_ADDR;
-                    end else begin
-                        CNT <= CNT + 1;
                     end
                 end
                 LINE1_ADDR: begin
@@ -111,13 +141,14 @@ module tlcd_controller(
                     STATE <= LINE1_ADDR_WAIT;
                 end
                 LINE1_ADDR_WAIT: begin
-                    if (CNT == 1) begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
                         TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         char_index <= 0;
                         STATE <= LINE1_WRITE;
-                    end else begin
-                        CNT <= CNT + 1;
                     end
                 end
                 LINE1_WRITE: begin
@@ -133,12 +164,14 @@ module tlcd_controller(
                     end
                 end
                 LINE1_WRITE_WAIT: begin
-                    if (CNT == 1) begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
                         TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= EXEC_TIME) begin
+                        CNT <= 0;
                         char_index <= char_index + 1;
                         STATE <= LINE1_WRITE;
-                    end else begin
-                        CNT <= CNT + 1;
                     end
                 end
                 LINE2_ADDR: begin
@@ -150,13 +183,14 @@ module tlcd_controller(
                     STATE <= LINE2_ADDR_WAIT;
                 end
                 LINE2_ADDR_WAIT: begin
-                    if (CNT == 1) begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
                         TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         char_index <= 0;
                         STATE <= LINE2_WRITE;
-                    end else begin
-                        CNT <= CNT + 1;
                     end
                 end
                 LINE2_WRITE: begin
@@ -172,12 +206,14 @@ module tlcd_controller(
                     end
                 end
                 LINE2_WRITE_WAIT: begin
-                    if (CNT == 1) begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) begin
                         TLCD_E <= 1'b0;
+                    end
+                    if (CNT >= EXEC_TIME) begin
+                        CNT <= 0;
                         char_index <= char_index + 1;
                         STATE <= LINE2_WRITE;
-                    end else begin
-                        CNT <= CNT + 1;
                     end
                 end
                 DONE: begin
