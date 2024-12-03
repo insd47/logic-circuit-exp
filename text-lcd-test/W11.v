@@ -7,7 +7,8 @@ module W11 (
     output wire [7:0] TLCD_DATA
 );
 
-    wire [2:0] font_loader_state;
+    wire font_loader_done;
+    reg enable_lcd;
     wire TLCD_E_font, TLCD_RS_font, TLCD_RW_font;
     wire [7:0] TLCD_DATA_font;
 
@@ -24,6 +25,7 @@ module W11 (
     tlcd_controller lcd_inst (
         .RESETN(RESETN),
         .CLK(CLK),
+        .ENABLE(enable_lcd),
         .TLCD_E(TLCD_E_text),
         .TLCD_RS(TLCD_RS_text),
         .TLCD_RW(TLCD_RW_text),
@@ -40,13 +42,22 @@ module W11 (
         .TLCD_RS(TLCD_RS_font),
         .TLCD_RW(TLCD_RW_font),
         .TLCD_DATA(TLCD_DATA_font),
-        .STATE(font_loader_state) // Expose state for control
+        .DONE(font_loader_done) // Indicate completion
     );
 
+    // Control the ENABLE signal based on font loading completion
+    always @(posedge CLK or posedge RESETN) begin
+        if (RESETN) begin
+            enable_lcd <= 0;
+        end else if (font_loader_done) begin
+            enable_lcd <= 1;
+        end
+    end
+
     // LCD control signal selection
-    assign TLCD_E   = (font_loader_state != 3'b010) ? TLCD_E_font   : TLCD_E_text;   // DONE state check
-    assign TLCD_RS  = (font_loader_state != 3'b010) ? TLCD_RS_font  : TLCD_RS_text;
-    assign TLCD_RW  = (font_loader_state != 3'b010) ? TLCD_RW_font  : TLCD_RW_text;
-    assign TLCD_DATA= (font_loader_state != 3'b010) ? TLCD_DATA_font: TLCD_DATA_text;
+    assign TLCD_E    = font_loader_done ? TLCD_E_text    : TLCD_E_font;
+    assign TLCD_RS   = font_loader_done ? TLCD_RS_text   : TLCD_RS_font;
+    assign TLCD_RW   = font_loader_done ? TLCD_RW_text   : TLCD_RW_font;
+    assign TLCD_DATA = font_loader_done ? TLCD_DATA_text : TLCD_DATA_font;
 
 endmodule

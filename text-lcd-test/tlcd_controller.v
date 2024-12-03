@@ -1,7 +1,8 @@
 module tlcd_controller(
     input wire RESETN,                      // Active low reset
     input wire CLK,                         // System clock
-    output wire TLCD_E,                     // LCD E pin
+    input wire ENABLE,                      // Start signal
+    output reg TLCD_E,                      // LCD E pin
     output reg TLCD_RS,                     // LCD RS pin
     output reg TLCD_RW,                     // LCD RW pin
     output reg [7:0] TLCD_DATA,             // LCD data bus
@@ -10,132 +11,181 @@ module tlcd_controller(
 );
 
     // State definition
-    reg [2:0] STATE;
-    parameter DELAY = 3'b000, FUNCTION_SET = 3'b001,
-              ENTRY_MODE = 3'b010, DISP_ONOFF = 3'b011,
-              LINE1 = 3'b100, LINE2 = 3'b101,
-              DELAY_T = 3'b110, CLEAR_DISP = 3'b111;
+    reg [3:0] STATE;
+    parameter IDLE = 4'd0,
+              FUNCTION_SET = 4'd1,
+              FUNCTION_SET_WAIT = 4'd2,
+              DISP_ONOFF = 4'd3,
+              DISP_ONOFF_WAIT = 4'd4,
+              ENTRY_MODE = 4'd5,
+              ENTRY_MODE_WAIT = 4'd6,
+              LINE1_ADDR = 4'd7,
+              LINE1_ADDR_WAIT = 4'd8,
+              LINE1_WRITE = 4'd9,
+              LINE1_WRITE_WAIT = 4'd10,
+              LINE2_ADDR = 4'd11,
+              LINE2_ADDR_WAIT = 4'd12,
+              LINE2_WRITE = 4'd13,
+              LINE2_WRITE_WAIT = 4'd14,
+              DONE = 4'd15;
 
-    integer CNT;
+    reg [15:0] CNT;
+    reg [4:0] char_index;
+    reg prev_ENABLE;
 
-    // LCD_E pin is directly connected to CLK
-    assign TLCD_E = CLK;
-
-    // State machine
-    always @(posedge RESETN or posedge CLK) begin
-        if (RESETN)
-            STATE <= DELAY;
-        else begin
-            case (STATE)
-                DELAY:
-                    if (CNT == 70) STATE <= FUNCTION_SET;
-                FUNCTION_SET:
-                    if (CNT == 30) STATE <= DISP_ONOFF;
-                DISP_ONOFF:
-                    if (CNT == 30) STATE <= ENTRY_MODE;
-                ENTRY_MODE:
-                    if (CNT == 30) STATE <= LINE1;
-                LINE1:
-                    if (CNT == 16) STATE <= LINE2;
-                LINE2:
-                    if (CNT == 16) STATE <= DELAY_T;
-                DELAY_T:
-                    if (CNT == 100) STATE <= CLEAR_DISP;
-                CLEAR_DISP:
-                    if (CNT == 30) STATE <= LINE1;
-                default:
-                    STATE <= DELAY;
-            endcase
-        end
-    end
-
-    // Counter
-    always @(posedge RESETN or posedge CLK) begin
-        if (RESETN)
-            CNT <= 0;
-        else begin
-            case (STATE)
-                DELAY:
-                    if (CNT >= 70) CNT <= 0;
-                    else CNT <= CNT + 1;
-                FUNCTION_SET:
-                    if (CNT >= 30) CNT <= 0;
-                    else CNT <= CNT + 1;
-                DISP_ONOFF:
-                    if (CNT >= 30) CNT <= 0;
-                    else CNT <= CNT + 1;
-                ENTRY_MODE:
-                    if (CNT >= 30) CNT <= 0;
-                    else CNT <= CNT + 1;
-                LINE1:
-                    if (CNT >= 16) CNT <= 0;
-                    else CNT <= CNT + 1;
-                LINE2:
-                    if (CNT >= 16) CNT <= 0;
-                    else CNT <= CNT + 1;
-                DELAY_T:
-                    if (CNT >= 100) CNT <= 0;
-                    else CNT <= CNT + 1;
-                CLEAR_DISP:
-                    if (CNT >= 30) CNT <= 0;
-                    else CNT <= CNT + 1;
-                default:
-                    CNT <= 0;
-            endcase
-        end
-    end
-
-    // LCD control signals and data settings
-    always @(posedge RESETN or posedge CLK) begin
+    // State machine and control signals
+    always @(posedge CLK or posedge RESETN) begin
         if (RESETN) begin
+            STATE <= IDLE;
+            CNT <= 0;
+            char_index <= 0;
+            prev_ENABLE <= 0;
+            TLCD_E <= 1'b0;
             TLCD_RS <= 1'b1;
             TLCD_RW <= 1'b1;
             TLCD_DATA <= 8'b00000000;
         end else begin
+            prev_ENABLE <= ENABLE;
             case (STATE)
+                IDLE: begin
+                    CNT <= 0;
+                    TLCD_E <= 1'b0;
+                    if (ENABLE && !prev_ENABLE) begin
+                        STATE <= FUNCTION_SET;
+                    end
+                end
                 FUNCTION_SET: begin
-                    TLCD_RS <= 1'b0; TLCD_RW <= 1'b0;
-                    TLCD_DATA <= 8'b00111100; // Function Set
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
+                    TLCD_DATA <= 8'b00111000; // Function Set command
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= FUNCTION_SET_WAIT;
+                end
+                FUNCTION_SET_WAIT: begin
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        STATE <= DISP_ONOFF;
+                    end else begin
+                        CNT <= CNT + 1;
+                    end
                 end
                 DISP_ONOFF: begin
-                    TLCD_RS <= 1'b0; TLCD_RW <= 1'b0;
-                    TLCD_DATA <= 8'b00001100; // Display On, Cursor Off
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
+                    TLCD_DATA <= 8'b00001100; // Display ON, Cursor OFF
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= DISP_ONOFF_WAIT;
+                end
+                DISP_ONOFF_WAIT: begin
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        STATE <= ENTRY_MODE;
+                    end else begin
+                        CNT <= CNT + 1;
+                    end
                 end
                 ENTRY_MODE: begin
-                    TLCD_RS <= 1'b0; TLCD_RW <= 1'b0;
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
                     TLCD_DATA <= 8'b00000110; // Entry Mode Set
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= ENTRY_MODE_WAIT;
                 end
-                LINE1: begin
-                    TLCD_RW <= 1'b0;
-                    if (CNT == 0) begin
-                        TLCD_RS <= 1'b0;
-                        TLCD_DATA <= 8'b10000000; // Line 1 starting address
+                ENTRY_MODE_WAIT: begin
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        STATE <= LINE1_ADDR;
                     end else begin
-                        TLCD_RS <= 1'b1;
-                        TLCD_DATA <= TEXT_STRING_UPPER[(16 - CNT)*8 +: 8]; // Extract character
+                        CNT <= CNT + 1;
                     end
                 end
-                LINE2: begin
+                LINE1_ADDR: begin
+                    TLCD_RS <= 1'b0;
                     TLCD_RW <= 1'b0;
-                    if (CNT == 0) begin
-                        TLCD_RS <= 1'b0;
-                        TLCD_DATA <= 8'b11000000; // Line 2 starting address
+                    TLCD_DATA <= 8'b10000000; // Line 1 starting address
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= LINE1_ADDR_WAIT;
+                end
+                LINE1_ADDR_WAIT: begin
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        CNT <= 0;
+                        char_index <= 0;
+                        STATE <= LINE1_WRITE;
                     end else begin
-                        TLCD_RS <= 1'b1;
-                        TLCD_DATA <= TEXT_STRING_LOWER[(16 - CNT)*8 +: 8];
+                        CNT <= CNT + 1;
                     end
                 end
-                DELAY_T: begin
-                    TLCD_RS <= 1'b0; TLCD_RW <= 1'b0;
-                    TLCD_DATA <= 8'b00000010; // Return Home
+                LINE1_WRITE: begin
+                    if (char_index < 16) begin
+                        TLCD_RS <= 1'b1;
+                        TLCD_RW <= 1'b0;
+                        TLCD_DATA <= TEXT_STRING_UPPER[(15 - char_index)*8 +:8];
+                        TLCD_E <= 1'b1;
+                        CNT <= 0;
+                        STATE <= LINE1_WRITE_WAIT;
+                    end else begin
+                        STATE <= LINE2_ADDR;
+                    end
                 end
-                CLEAR_DISP: begin
-                    TLCD_RS <= 1'b0; TLCD_RW <= 1'b0;
-                    TLCD_DATA <= 8'b00000001; // Clear Display
+                LINE1_WRITE_WAIT: begin
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        char_index <= char_index + 1;
+                        STATE <= LINE1_WRITE;
+                    end else begin
+                        CNT <= CNT + 1;
+                    end
+                end
+                LINE2_ADDR: begin
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
+                    TLCD_DATA <= 8'b11000000; // Line 2 starting address
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= LINE2_ADDR_WAIT;
+                end
+                LINE2_ADDR_WAIT: begin
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        CNT <= 0;
+                        char_index <= 0;
+                        STATE <= LINE2_WRITE;
+                    end else begin
+                        CNT <= CNT + 1;
+                    end
+                end
+                LINE2_WRITE: begin
+                    if (char_index < 16) begin
+                        TLCD_RS <= 1'b1;
+                        TLCD_RW <= 1'b0;
+                        TLCD_DATA <= TEXT_STRING_LOWER[(15 - char_index)*8 +:8];
+                        TLCD_E <= 1'b1;
+                        CNT <= 0;
+                        STATE <= LINE2_WRITE_WAIT;
+                    end else begin
+                        STATE <= DONE;
+                    end
+                end
+                LINE2_WRITE_WAIT: begin
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        char_index <= char_index + 1;
+                        STATE <= LINE2_WRITE;
+                    end else begin
+                        CNT <= CNT + 1;
+                    end
+                end
+                DONE: begin
+                    // Update complete, return to IDLE or wait for next ENABLE
+                    STATE <= IDLE;
                 end
                 default: begin
-                    TLCD_RS <= 1'b1; TLCD_RW <= 1'b1;
-                    TLCD_DATA <= 8'b00000000;
+                    STATE <= IDLE;
                 end
             endcase
         end

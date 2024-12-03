@@ -1,21 +1,22 @@
 module custom_font_loader(
     input wire RESETN,
     input wire CLK,
-    output wire TLCD_E,
+    output reg TLCD_E,
     output reg TLCD_RS,
     output reg TLCD_RW,
     output reg [7:0] TLCD_DATA,
-    output reg [2:0] STATE // Expose current state
+    output reg DONE // Indicate completion
 );
 
-    parameter INIT = 3'b000, LOAD_FONT = 3'b001, DONE = 3'b010;
+    parameter INIT = 2'b00, LOAD_FONT = 2'b01, FINISHED = 2'b10;
 
-    integer CNT;
+    reg [1:0] STATE;
     reg [5:0] cf_addr; // Custom font address
     reg [7:0] custom_font [0:39]; // 5x8 fonts, total 40 bytes
+    reg [3:0] CNT;
 
     initial begin
-        // Initialize custom font data
+        // Initialize custom font data (same as before)
         // CF1
         custom_font[0] = 8'b00110;
         custom_font[1] = 8'b00111;
@@ -63,43 +64,48 @@ module custom_font_loader(
         custom_font[39]= 8'b00100;
     end
 
-    assign TLCD_E = CLK; // E pin connected to CLK
-
-    always @(posedge RESETN or posedge CLK) begin
+    always @(posedge CLK or posedge RESETN) begin
         if (RESETN) begin
             STATE <= INIT;
-            CNT <= 0;
             cf_addr <= 0;
+            CNT <= 0;
+            DONE <= 0;
+            TLCD_E <= 1'b0;
+            TLCD_RS <= 1'b1;
+            TLCD_RW <= 1'b1;
+            TLCD_DATA <= 8'b00000000;
         end else begin
             case (STATE)
                 INIT: begin
+                    // Set CGRAM address
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
+                    TLCD_DATA <= 8'b01000000; // Set CGRAM address to 0
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
                     STATE <= LOAD_FONT;
                 end
                 LOAD_FONT: begin
-                    if (cf_addr < 6'd40) begin
-                        if (CNT == 0) begin
-                            if (cf_addr[2:0] == 3'd0) begin
-                                TLCD_RS <= 1'b0;
-                                TLCD_RW <= 1'b0;
-                                TLCD_DATA <= 8'b01000000 | (cf_addr[5:3] << 3); // Set CGRAM address
-                            end else begin
-                                TLCD_RS <= 1'b1;
-                                TLCD_RW <= 1'b0;
-                                TLCD_DATA <= custom_font[cf_addr];
-                            end
-                            CNT <= CNT + 1;
-                        end else if (CNT == 1) begin
-                            CNT <= 0;
+                    if (CNT == 1) begin
+                        TLCD_E <= 1'b0;
+                        CNT <= 0;
+                        if (cf_addr < 6'd40) begin
+                            TLCD_RS <= 1'b1;
+                            TLCD_RW <= 1'b0;
+                            TLCD_DATA <= custom_font[cf_addr];
+                            TLCD_E <= 1'b1;
                             cf_addr <= cf_addr + 1;
+                        end else begin
+                            STATE <= FINISHED;
                         end
                     end else begin
-                        STATE <= DONE;
+                        CNT <= CNT + 1;
                     end
                 end
-                DONE: begin
-                    // Custom font loading complete
+                FINISHED: begin
+                    TLCD_E <= 1'b0;
+                    DONE <= 1;
                 end
-                default: STATE <= DONE;
             endcase
         end
     end
