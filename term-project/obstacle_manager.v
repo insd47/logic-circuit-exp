@@ -14,6 +14,8 @@ module obstacle_manager(
 
     reg [1:0] obstacles[0:15];
     integer idx;
+    integer check;
+    reg any_obs;
     reg [3:0] jump_cnt;
 
     always @(posedge CLK or posedge RST) begin
@@ -39,8 +41,6 @@ module obstacle_manager(
                 obstacles[15] <= 2'b00;
 
                 // 장애물 생성
-                integer check;
-                reg any_obs;
                 any_obs = 0;
                 for(check=5; check<=15; check=check+1) begin
                     if(obstacles[check] != 2'b00)
@@ -79,11 +79,6 @@ module obstacle_manager(
         end
     end
 
-    // obstacles 배열을 하나의 벡터로 합쳐서 출력
-    // obstacles[0]은 obstacle_map_flat[1:0]
-    // obstacles[1]은 obstacle_map_flat[3:2]
-    // ...
-    // obstacles[15]는 obstacle_map_flat[31:30]
     genvar i;
     generate
         for(i=0; i<16; i=i+1) begin : FLATTEN
