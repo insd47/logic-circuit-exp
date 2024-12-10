@@ -32,6 +32,11 @@ module main(
     reg [8*16-1:0] TEXT_UPPER;
     reg [8*16-1:0] TEXT_LOWER;
 
+    // 16x2 LCD에 표시할 문자열
+    integer i;
+    reg [7:0] upper_line[0:15];
+    reg [7:0] lower_line[0:15];
+
     // font loader
     custom_font_loader font_loader (
         .RESETN(RST),
@@ -223,41 +228,36 @@ module main(
                 TEXT_LOWER = {8'h00,"  TO START GAME"};
             end
             STATE_GAME: begin
-                integer i;
-                reg [7:0] upper_line[0:15];
-                reg [7:0] lower_line[0:15];
-
                 for(i=0;i<16;i=i+1) begin
                     upper_line[i] = 8'h20;
                     lower_line[i] = 8'h20;
                 end
 
                 // 공룡 표시
-                if(dino_on_ground) lower_line[0] = 8'h00; else upper_line[0] = 8'h03;
+                if(dino_on_ground)
+                    lower_line[0] = 8'h00;
+                else
+                    upper_line[0] = 8'h03;
 
+                // 장애물 표시
                 for(i=0;i<16;i=i+1) begin
-                    // obstacle_map_flat에서 i번째 obstacle 추출
-                    // obstacle_map_flat[2*i+1:2*i]
                     reg [1:0] obs_val;
-                    obs_val = obstacle_map_flat[2*i+1 : 2*i];
+                    obs_val = obstacle_map_flat[2*i+1:2*i];
                     if(obs_val != 2'b00) begin
-                        lower_line[i] = get_char_for_obstacle(obs_val);
+                        lower_line[i] = 8'h04;
                     end
                 end
 
-                TEXT_UPPER = {
-                    upper_line[0], upper_line[1], upper_line[2], upper_line[3],
-                    upper_line[4], upper_line[5], upper_line[6], upper_line[7],
-                    upper_line[8], upper_line[9], upper_line[10],upper_line[11],
-                    upper_line[12],upper_line[13],upper_line[14],upper_line[15]
-                };
+                // 배열을 문자열로 변환
+                TEXT_UPPER = {upper_line[0],upper_line[1],upper_line[2],upper_line[3],
+                              upper_line[4],upper_line[5],upper_line[6],upper_line[7],
+                              upper_line[8],upper_line[9],upper_line[10],upper_line[11],
+                              upper_line[12],upper_line[13],upper_line[14],upper_line[15]};
 
-                TEXT_LOWER = {
-                    lower_line[0], lower_line[1], lower_line[2], lower_line[3],
-                    lower_line[4], lower_line[5], lower_line[6], lower_line[7],
-                    lower_line[8], lower_line[9], lower_line[10],lower_line[11],
-                    lower_line[12],lower_line[13],lower_line[14],lower_line[15]
-                };
+                TEXT_LOWER = {lower_line[0],lower_line[1],lower_line[2],lower_line[3],
+                              lower_line[4],lower_line[5],lower_line[6],lower_line[7],
+                              lower_line[8],lower_line[9],lower_line[10],lower_line[11],
+                              lower_line[12],lower_line[13],lower_line[14],lower_line[15]};
             end
             STATE_GAME_OVER: begin
                 TEXT_UPPER = "GAME OVER       ";
