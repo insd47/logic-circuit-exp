@@ -26,6 +26,7 @@ module main(
     localparam STATE_GAME_OVER = 3;
 
     reg [1:0] cur_state, next_state;
+    reg [1:0] prev_state;
 
     wire font_loader_done;
     wire TLCD_E_font, TLCD_RS_font, TLCD_RW_font;
@@ -37,15 +38,17 @@ module main(
     // Text LCD 문자열
     reg [8*16-1:0] TEXT_UPPER;
     reg [8*16-1:0] TEXT_LOWER;
-    reg enable_lcd;
 
-    // 16x2 LCD에 표시할 문자열
+    // LCD ENABLE 제어용
+    reg enable_lcd;
+    reg enable_lcd_toggle; // LCD 재갱신 요청 신호
+    reg enable_lcd_delay;  // 다음 사이클에 enable_lcd를 다시 1로 만들기 위한 딜레이 신호
+
     integer i;
     reg [7:0] upper_line[0:15];
     reg [7:0] lower_line[0:15];
     reg [1:0] obs_val;
 
-    // obstacle getter
     function [1:0] get_obstacle;
         input [31:0] flat;
         input [3:0] idx;
@@ -204,10 +207,15 @@ module main(
     assign AR_SEG_F = seg_f;
     assign AR_SEG_G = seg_g;
 
-    // 상태 전이
+    // 상태 전이 및 prev_state 관리
     always @(posedge CLK or posedge RST) begin
-        if(RST) cur_state <= STATE_FONT_LOAD;
-        else cur_state <= next_state;
+        if(RST) begin
+            cur_state <= STATE_FONT_LOAD;
+            prev_state <= STATE_FONT_LOAD;
+        end else begin
+            prev_state <= cur_state;
+            cur_state <= next_state;
+        end
     end
 
     always @(*) begin
@@ -223,7 +231,6 @@ module main(
                 if(om_game_over) next_state = STATE_GAME_OVER;
             end
             STATE_GAME_OVER: begin
-                // 아무 키나 눌러도 게임 다시 시작
                 if(trig_any_digit || trig_hash) next_state = STATE_GAME;
             end
         endcase
@@ -241,7 +248,6 @@ module main(
         end
     end
 
-    // obstacle_map_flat에서 각 칸을 읽어 LCD에 표현
     function [7:0] get_char_for_obstacle(input [1:0] obs_val);
         begin
             if(obs_val == 2'b00) get_char_for_obstacle = 8'h20; // space
@@ -249,9 +255,12 @@ module main(
         end
     endfunction
 
-    // LCD 문자 세팅
+    // 문자열 세팅 로직
     always @(*) begin
-        enable_lcd <= 0;
+        // 기본값: 공백
+        TEXT_UPPER = "                ";
+        TEXT_LOWER = "                ";
+
         case(cur_state)
             STATE_FONT_LOAD: begin
                 TEXT_UPPER = "LOADING FONTS...  ";
@@ -266,7 +275,6 @@ module main(
                     upper_line[i] = 8'h20;
                     lower_line[i] = 8'h20;
                 end
-
                 // 공룡 표시
                 if(dino_on_ground)
                     lower_line[0] = 8'h00;
@@ -281,27 +289,46 @@ module main(
                     end
                 end
 
-                // 배열을 문자열로 변환
-                TEXT_UPPER = {upper_line[0],upper_line[1],upper_line[2],upper_line[3],
-                              upper_line[4],upper_line[5],upper_line[6],upper_line[7],
-                              upper_line[8],upper_line[9],upper_line[10],upper_line[11],
-                              upper_line[12],upper_line[13],upper_line[14],upper_line[15]};
+                TEXT_UPPER = {
+                    upper_line[0],upper_line[1],upper_line[2],upper_line[3],
+                    upper_line[4],upper_line[5],upper_line[6],upper_line[7],
+                    upper_line[8],upper_line[9],upper_line[10],upper_line[11],
+                    upper_line[12],upper_line[13],upper_line[14],upper_line[15]
+                };
 
-                TEXT_LOWER = {lower_line[0],lower_line[1],lower_line[2],lower_line[3],
-                              lower_line[4],lower_line[5],lower_line[6],lower_line[7],
-                              lower_line[8],lower_line[9],lower_line[10],lower_line[11],
-                              lower_line[12],lower_line[13],lower_line[14],lower_line[15]};
+                TEXT_LOWER = {
+                    lower_line[0],lower_line[1],lower_line[2],lower_line[3],
+                    lower_line[4],lower_line[5],lower_line[6],lower_line[7],
+                    lower_line[8],lower_line[9],lower_line[10],lower_line[11],
+                    lower_line[12],lower_line[13],lower_line[14],lower_line[15]
+                };
             end
             STATE_GAME_OVER: begin
                 TEXT_UPPER = "GAME OVER       ";
                 TEXT_LOWER = {8'h04,"         ",8'h03," "};
             end
-            default: begin
-                TEXT_UPPER = "                ";
-                TEXT_LOWER = "                ";
-            end
         endcase
-        enable_lcd <= 1;
+    end
+
+    // 문자열 변경 감지 및 enable_lcd 토글 로직
+    // TEXT_UPPER, TEXT_LOWER가 상태 변화시 변경되므로 상태 변화 발생 시 enable_lcd 토글
+    always @(posedge CLK or posedge RST) begin
+        if(RST) begin
+            enable_lcd <= 0;
+            enable_lcd_toggle <= 0;
+            enable_lcd_delay <= 0;
+        end else begin
+            // 상태가 바뀌었으면 LCD 업데이트 필요
+            if(prev_state != cur_state) begin
+                // 우선 enable_lcd를 0으로 하여 다음 사이클에 1로 바꾸도록
+                enable_lcd <= 0;
+                enable_lcd_delay <= 1;
+            end else if(enable_lcd_delay) begin
+                // 다음 사이클 enable_lcd를 1로 복구
+                enable_lcd <= 1;
+                enable_lcd_delay <= 0;
+            end
+        end
     end
 
 endmodule
