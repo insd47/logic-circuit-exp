@@ -1,4 +1,4 @@
-module main(
+module dino_game_top(
     input wire CLK,          // 1MHz
     input wire RESETN,       // active low
     input wire [9:0] KEY,    // keypad 0~9
@@ -19,8 +19,8 @@ module main(
 
     wire rst = ~RESETN;
 
-    // 변수 선언을 모듈 상단으로 이동
-    integer i, sc;
+    // 변수 선언
+    integer sc;
     integer tmp_score;
     reg [7:0] line2[0:15];
 
@@ -138,7 +138,6 @@ module main(
                 if(font_loader_done) begin
                     game_state <= ST_MAIN;
                     upper_str <= "    PRESS ANY KEY";
-                    // "  TO START GAME"는 15글자 + 8'h00 = 16바이트 맞음
                     lower_str <= {8'h00,"  TO START GAME"};
                 end
             end
@@ -150,7 +149,6 @@ module main(
                     dino_jump <= 0;
                     jump_cnt <= 0;
                     upper_str <= "                ";
-                    // {8'h00,8'h02,"           ",8'h04} 길이 체크 필요하나 문법엔 영향 없음
                     lower_str <= {8'h00,8'h02,"           ",8'h04};
                 end
             end
@@ -197,15 +195,99 @@ module main(
                         game_state <= ST_GAME_OVER;
                     end
 
-                    // LCD 업데이트
+                    // LCD 업데이트: i 사용 없이 하드코딩
                     line2[0] = dino_jump ? 8'h02 : 8'h00;
-                    for(i=1;i<16;i=i+1) begin
-                        case(obstacle_reg[i*2+1:i*2])
-                            2'b01: line2[i]=8'h03;
-                            2'b10: line2[i]=8'h04;
-                            default: line2[i]=8'h20;
-                        endcase
-                    end
+                    // line2[1]
+                    case(obstacle_reg[3:2])
+                        2'b01: line2[1]=8'h03;
+                        2'b10: line2[1]=8'h04;
+                        default: line2[1]=8'h20;
+                    endcase
+                    // line2[2]
+                    case(obstacle_reg[5:4])
+                        2'b01: line2[2]=8'h03;
+                        2'b10: line2[2]=8'h04;
+                        default: line2[2]=8'h20;
+                    endcase
+                    // line2[3]
+                    case(obstacle_reg[7:6])
+                        2'b01: line2[3]=8'h03;
+                        2'b10: line2[3]=8'h04;
+                        default: line2[3]=8'h20;
+                    endcase
+                    // line2[4]
+                    case(obstacle_reg[9:8])
+                        2'b01: line2[4]=8'h03;
+                        2'b10: line2[4]=8'h04;
+                        default: line2[4]=8'h20;
+                    endcase
+                    // line2[5]
+                    case(obstacle_reg[11:10])
+                        2'b01: line2[5]=8'h03;
+                        2'b10: line2[5]=8'h04;
+                        default: line2[5]=8'h20;
+                    endcase
+                    // line2[6]
+                    case(obstacle_reg[13:12])
+                        2'b01: line2[6]=8'h03;
+                        2'b10: line2[6]=8'h04;
+                        default: line2[6]=8'h20;
+                    endcase
+                    // line2[7]
+                    case(obstacle_reg[15:14])
+                        2'b01: line2[7]=8'h03;
+                        2'b10: line2[7]=8'h04;
+                        default: line2[7]=8'h20;
+                    endcase
+                    // line2[8]
+                    case(obstacle_reg[17:16])
+                        2'b01: line2[8]=8'h03;
+                        2'b10: line2[8]=8'h04;
+                        default: line2[8]=8'h20;
+                    endcase
+                    // line2[9]
+                    case(obstacle_reg[19:18])
+                        2'b01: line2[9]=8'h03;
+                        2'b10: line2[9]=8'h04;
+                        default: line2[9]=8'h20;
+                    endcase
+                    // line2[10]
+                    case(obstacle_reg[21:20])
+                        2'b01: line2[10]=8'h03;
+                        2'b10: line2[10]=8'h04;
+                        default: line2[10]=8'h20;
+                    endcase
+                    // line2[11]
+                    case(obstacle_reg[23:22])
+                        2'b01: line2[11]=8'h03;
+                        2'b10: line2[11]=8'h04;
+                        default: line2[11]=8'h20;
+                    endcase
+                    // line2[12]
+                    case(obstacle_reg[25:24])
+                        2'b01: line2[12]=8'h03;
+                        2'b10: line2[12]=8'h04;
+                        default: line2[12]=8'h20;
+                    endcase
+                    // line2[13]
+                    case(obstacle_reg[27:26])
+                        2'b01: line2[13]=8'h03;
+                        2'b10: line2[13]=8'h04;
+                        default: line2[13]=8'h20;
+                    endcase
+                    // line2[14]
+                    case(obstacle_reg[29:28])
+                        2'b01: line2[14]=8'h03;
+                        2'b10: line2[14]=8'h04;
+                        default: line2[14]=8'h20;
+                    endcase
+                    // line2[15]
+                    case(obstacle_reg[31:30])
+                        2'b01: line2[15]=8'h03;
+                        2'b10: line2[15]=8'h04;
+                        default: line2[15]=8'h20;
+                    endcase
+
                     upper_str <= "                ";
                     lower_str <= {line2[15],line2[14],line2[13],line2[12],
                                   line2[11],line2[10],line2[9],line2[8],
@@ -215,7 +297,6 @@ module main(
             end
             ST_GAME_OVER: begin
                 upper_str <= "    GAME OVER    ";
-                // {8'h04,"         ",8'h03} 길이는 8'h04 +9 spaces +8'h03 =11 chars 총16자 필요시 공백 더 추가
                 lower_str <= {8'h04,"         ",8'h03,"   "};
                 if(any_key_trigger) begin
                     game_state <= ST_MAIN;
@@ -234,7 +315,7 @@ module main(
 
     always @(posedge CLK or posedge rst) begin
         if(rst) bcd_start <= 0;
-        else if(quarter_sec_pulse) bcd_start <= 1; // 매 0.25초마다 점수 업데이트 시도
+        else if(quarter_sec_pulse) bcd_start <= 1;
         else if(bcd_done) bcd_start <= 0;
     end
 
