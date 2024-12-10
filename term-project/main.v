@@ -35,14 +35,13 @@ module main(
     wire TLCD_E_text, TLCD_RS_text, TLCD_RW_text;
     wire [7:0] TLCD_DATA_text;
 
-    // Text LCD 문자열
     reg [8*16-1:0] TEXT_UPPER;
     reg [8*16-1:0] TEXT_LOWER;
 
-    // LCD ENABLE 제어용
+    // LCD ENABLE 제어
     reg enable_lcd;
-    reg enable_lcd_toggle; // LCD 재갱신 요청 신호
-    reg enable_lcd_delay;  // 다음 사이클에 enable_lcd를 다시 1로 만들기 위한 딜레이 신호
+    reg enable_lcd_delay_state;    // 상태 변화 후 다음 사이클에 enable_lcd를 1로 복귀하기 위한 딜레이
+    reg enable_lcd_delay_shift;    // shift_enable 변화 후 다음 사이클에 enable_lcd를 1로 복귀하기 위한 딜레이
 
     integer i;
     reg [7:0] upper_line[0:15];
@@ -75,7 +74,6 @@ module main(
     end
     endfunction
 
-    // font loader
     custom_font_loader font_loader (
         .RESETN(RST),
         .CLK(CLK),
@@ -86,7 +84,6 @@ module main(
         .DONE(font_loader_done)
     );
 
-    // LCD Controller
     tlcd_controller lcd_ctrl(
         .RESETN(RST),
         .CLK(CLK),
@@ -104,19 +101,21 @@ module main(
     assign TLCD_RW   = font_loader_done ? TLCD_RW_text   : TLCD_RW_font;
     assign TLCD_DATA = font_loader_done ? TLCD_DATA_text : TLCD_DATA_font;
 
-    // Key trigger
     reg any_digit_input;
     integer k;
     always @(*) begin
         any_digit_input = 1'b0;
         for(k=0; k<10; k=k+1) begin
-            if(Keypad[k] == 1'b1) any_digit_input = 1'b1;
+            if(Keypad[k] == 1'b1)
+                any_digit_input = 1'b1;
         end
     end
 
     wire trig_any_digit;
     wire trig_hash;
 
+    // trigger 모듈은 Rising Edge 감지용으로 구현했다고 가정
+    // triggered <= (!prev_signal_in && signal_in);
     trigger trig_digit (
         .clk(CLK),
         .rst(RST),
@@ -131,7 +130,6 @@ module main(
         .triggered(trig_hash)
     );
 
-    // lfsr 인스턴스
     wire [15:0] rand_val;
     lfsr lfsr_inst (
         .CLK(CLK),
@@ -139,7 +137,6 @@ module main(
         .rand_out(rand_val)
     );
 
-    // obstacle_manager
     wire om_game_over;
     wire dino_on_ground;
     wire [31:0] score;
@@ -164,6 +161,13 @@ module main(
         end
     end
 
+    // shift_enable Rising Edge 감지
+    reg prev_shift_enable;
+    always @(posedge CLK or posedge RST) begin
+        if(RST) prev_shift_enable <= 0;
+        else prev_shift_enable <= shift_enable;
+    end
+
     wire force_game_over_signal = (cur_state == STATE_GAME) ? trig_hash : 1'b0;
     wire jump_trigger_signal = (cur_state == STATE_GAME && trig_any_digit);
 
@@ -181,7 +185,6 @@ module main(
         .obstacle_map_flat(obstacle_map_flat)
     );
 
-    // 7-Segment
     wire [7:0] com_out;
     wire seg_a, seg_b, seg_c, seg_d, seg_e, seg_f, seg_g;
     seg_controller segc(
@@ -207,7 +210,7 @@ module main(
     assign AR_SEG_F = seg_f;
     assign AR_SEG_G = seg_g;
 
-    // 상태 전이 및 prev_state 관리
+    // 상태 전이
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             cur_state <= STATE_FONT_LOAD;
@@ -248,16 +251,15 @@ module main(
         end
     end
 
-    function [7:0] get_char_for_obstacle(input [1:0] obs_val);
+    function [7:0] get_char_for_obstacle_char(input [1:0] obs_val);
         begin
-            if(obs_val == 2'b00) get_char_for_obstacle = 8'h20; // space
-            else get_char_for_obstacle = 8'h04; // obstacle char
+            if(obs_val == 2'b00) get_char_for_obstacle_char = 8'h20; // space
+            else get_char_for_obstacle_char = 8'h04; // obstacle char
         end
     endfunction
 
-    // 문자열 세팅 로직
+    // 문자열 세팅
     always @(*) begin
-        // 기본값: 공백
         TEXT_UPPER = "                ";
         TEXT_LOWER = "                ";
 
@@ -275,7 +277,8 @@ module main(
                     upper_line[i] = 8'h20;
                     lower_line[i] = 8'h20;
                 end
-                // 공룡 표시
+
+                // 공룡 표시 (점프시 위줄, 아니면 아래줄)
                 if(dino_on_ground)
                     lower_line[0] = 8'h00;
                 else
@@ -285,7 +288,7 @@ module main(
                 for(i=0;i<16;i=i+1) begin
                     obs_val = get_obstacle(obstacle_map_flat, i);
                     if(obs_val != 2'b00) begin
-                        lower_line[i] = 8'h04;
+                        lower_line[i] = get_char_for_obstacle_char(obs_val);
                     end
                 end
 
@@ -310,23 +313,32 @@ module main(
         endcase
     end
 
-    // 문자열 변경 감지 및 enable_lcd 토글 로직
-    // TEXT_UPPER, TEXT_LOWER가 상태 변화시 변경되므로 상태 변화 발생 시 enable_lcd 토글
+    // LCD 갱신 로직
+    // 상태 변화 또는 shift_enable Rising Edge 시 LCD 업데이트
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             enable_lcd <= 0;
-            enable_lcd_toggle <= 0;
-            enable_lcd_delay <= 0;
+            enable_lcd_delay_state <= 0;
+            enable_lcd_delay_shift <= 0;
         end else begin
-            // 상태가 바뀌었으면 LCD 업데이트 필요
+            // 상태 변화 감지
             if(prev_state != cur_state) begin
-                // 우선 enable_lcd를 0으로 하여 다음 사이클에 1로 바꾸도록
+                // 상태 바뀌면 LCD 갱신
                 enable_lcd <= 0;
-                enable_lcd_delay <= 1;
-            end else if(enable_lcd_delay) begin
-                // 다음 사이클 enable_lcd를 1로 복구
+                enable_lcd_delay_state <= 1;
+            end else if(enable_lcd_delay_state) begin
                 enable_lcd <= 1;
-                enable_lcd_delay <= 0;
+                enable_lcd_delay_state <= 0;
+            end
+
+            // shift_enable Rising Edge 감지
+            if(!prev_shift_enable && shift_enable) begin
+                // shift_enable 0->1 되면 LCD 갱신
+                enable_lcd <= 0;
+                enable_lcd_delay_shift <= 1;
+            end else if(enable_lcd_delay_shift) begin
+                enable_lcd <= 1;
+                enable_lcd_delay_shift <= 0;
             end
         end
     end
