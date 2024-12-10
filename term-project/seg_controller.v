@@ -48,17 +48,17 @@ module seg_controller (
 
     always @(*) begin
         case(digits[digit_select])
-            4'd0: seg_data = 7'b0000001; // 0 표시 (cc)
-            4'd1: seg_data = 7'b1001111;
-            4'd2: seg_data = 7'b0010010;
-            4'd3: seg_data = 7'b0000110;
-            4'd4: seg_data = 7'b1001100;
-            4'd5: seg_data = 7'b0100100;
-            4'd6: seg_data = 7'b0100000;
-            4'd7: seg_data = 7'b0001111;
-            4'd8: seg_data = 7'b0000000;
-            4'd9: seg_data = 7'b0000100;
-            default: seg_data = 7'b1111111;
+            4'd0: seg_data = 7'b1111110; // 0 표시 (cc)
+            4'd1: seg_data = 7'b0110000;
+            4'd2: seg_data = 7'b1101101;
+            4'd3: seg_data = 7'b1111001;
+            4'd4: seg_data = 7'b0110011;
+            4'd5: seg_data = 7'b1011011;
+            4'd6: seg_data = 7'b1011111;
+            4'd7: seg_data = 7'b1110010;
+            4'd8: seg_data = 7'b1111111;
+            4'd9: seg_data = 7'b1111011;
+            default: seg_data = 7'b0000000;
         endcase
     end
 
