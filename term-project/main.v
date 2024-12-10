@@ -16,8 +16,7 @@ module main(
     output wire AR_SEG_E,
     output wire AR_SEG_F,
     output wire AR_SEG_G,
-    output wire [7:0] AR_COM,
-    output reg [0:1] LED
+    output wire [7:0] AR_COM
 );
 
     // 상태 정의
@@ -204,30 +203,6 @@ module main(
     assign AR_SEG_E = seg_e;
     assign AR_SEG_F = seg_f;
     assign AR_SEG_G = seg_g;
-
-    // LED 0번 제어를 위한 레지스터
-    reg LED_on;
-    // 트리거 발생 시 LED_on을 1로 세팅하고, 다음 shift_enable 발생 시 LED_on을 0으로 꺼준다.
-    always @(posedge CLK or posedge RST) begin
-        if(RST) begin
-            LED_on <= 0;
-            LED[0] <= 0;
-        end else begin
-            // 버튼 누름 감지 시 LED 켜기
-            if(trig_any_digit || trig_hash) begin
-                LED_on <= 1;
-                LED[0] <= 1;
-            end
-            // shift_enable 발생 시 LED 끄기
-            if(shift_enable) begin
-                LED_on <= 0;
-                LED[0] <= 0;
-            end
-        end
-    end
-
-    // 0번 버튼의 입력 자체를 LED 1번에 출력
-    assign LED[1] = Keypad[0];
 
     // 상태 전이
     always @(posedge CLK or posedge RST) begin
