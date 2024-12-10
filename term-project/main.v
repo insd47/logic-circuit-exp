@@ -338,7 +338,7 @@ module dino_game_top(
     wire [33:0] seg_num;
     assign seg_num = {BCD7,BCD6,BCD5,BCD4,BCD3,BCD2,BCD1,BCD0, 2'b00};
 
-    eight_digit_7seg_controller seg_ctrl(
+    seg_controller seg_ctrl(
         .CLK(CLK),
         .RST(rst),
         .NUM(seg_num),
