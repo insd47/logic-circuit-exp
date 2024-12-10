@@ -38,6 +38,15 @@ module main(
     reg [7:0] lower_line[0:15];
     reg [1:0] obs_val;
 
+    // obstacle getter
+    function [1:0] get_obstacle;
+        input [31:0] flat;
+        input [3:0] idx;
+    begin
+        get_obstacle = flat[(2*idx)+1 : (2*idx)];
+    end
+    endfunction
+
     // font loader
     custom_font_loader font_loader (
         .RESETN(RST),
@@ -242,7 +251,7 @@ module main(
 
                 // 장애물 표시
                 for(i=0;i<16;i=i+1) begin
-                    obs_val = obstacle_map_flat[2*i+1:2*i];
+                    obs_val = get_obstacle(obstacle_map_flat, i);
                     if(obs_val != 2'b00) begin
                         lower_line[i] = 8'h04;
                     end
