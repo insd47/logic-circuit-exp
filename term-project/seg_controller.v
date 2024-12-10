@@ -45,7 +45,7 @@ module seg_controller (
     reg [6:0] seg_data;
 
     // Determine if the current digit should be blanked
-    wire blank;
+    reg blank;
 
     integer j;
     reg blank_internal;
