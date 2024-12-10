@@ -1,75 +1,65 @@
-module seg_controller(
-    input wire CLK,         // 1MHz
+module seg_controller (
+    input wire CLK,
     input wire RST,
-    input wire [33:0] NUM,  // NUM[33:0], 실제 8자리 *4비트 = 32비트 사용, 상위2비트는 0
-    output reg AR_SEG_A,
-    output reg AR_SEG_B,
-    output reg AR_SEG_C,
-    output reg AR_SEG_D,
-    output reg AR_SEG_E,
-    output reg AR_SEG_F,
-    output reg AR_SEG_G,
-    output reg [7:0] AR_COM
+    input wire [31:0] BINARY_SCORE, // 최대 8자리 10진수 표시 가능
+    output reg [7:0] AR_COM,        // Common anode or cathode control lines
+    output reg [6:0] AR_SEG         // Segment lines (a-g)
 );
 
-    // NUM: Digit0 = NUM[3:0], Digit1 = NUM[7:4], ..., Digit7 = NUM[31:28]
-    wire [3:0] digits [7:0];
-    assign digits[0] = NUM[3:0];
-    assign digits[1] = NUM[7:4];
-    assign digits[2] = NUM[11:8];
-    assign digits[3] = NUM[15:12];
-    assign digits[4] = NUM[19:16];
-    assign digits[5] = NUM[23:20];
-    assign digits[6] = NUM[27:24];
-    assign digits[7] = NUM[31:28];
-
-    // 자리 선택을 위한 스캔 카운터
-    reg [12:0] scan_cnt;
-    reg [2:0] digit_sel;
+    // 1MHz 기준으로 약 1kHz multiplexing을 위해 카운터 사용
+    reg [15:0] mux_cnt;
     always @(posedge CLK or posedge RST) begin
-        if(RST) begin
-            scan_cnt <= 0;
-            digit_sel <= 0;
-        end else begin
-            // 약 1kHz: 1MHz/1000=1000 cycle
-            // 대략 125µs마다 다음 자리로 넘어간다고 가정
-            if(scan_cnt < 999) begin
-                scan_cnt <= scan_cnt + 1;
-            end else begin
-                scan_cnt <= 0;
-                digit_sel <= digit_sel + 1;
-            end
+        if(RST) mux_cnt <= 0;
+        else mux_cnt <= mux_cnt + 1;
+    end
+
+    wire [2:0] digit_select = mux_cnt[12:10]; // 약 1kHz로 8개 자리 순회(필요하면 조정)
+
+    // BINARY_SCORE를 10진수로 변환하여 8자리 분리
+    // 간단히 나눗셈으로 8자리 추출
+    integer i;
+    reg [31:0] value;
+    reg [3:0] digits[0:7];
+    always @(*) begin
+        value = BINARY_SCORE;
+        for(i=0;i<8;i=i+1) begin
+            digits[i] = value % 10;
+            value = value / 10;
         end
     end
 
-    // 현재 선택 자리
-    reg [3:0] current_digit;
-    always @(*) begin
-        current_digit = digits[digit_sel];
-    end
+    // digits[0]가 LSD, digits[7]이 MSD
+    wire [3:0] current_digit = digits[digit_select];
 
-    // 7세그 변환
-    // 0~9만 표시한다고 가정
+    // 7-Segment 인코딩
+    // Common anode 기준, 0: on, 1: off 이면 반대로 조정 필요
+    reg [6:0] seg_data;
     always @(*) begin
-        case (current_digit)
-            4'h0: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1111110;
-            4'h1: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b0110000;
-            4'h2: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1101101;
-            4'h3: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1111001;
-            4'h4: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b0110011;
-            4'h5: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1011011;
-            4'h6: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1011111;
-            4'h7: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1110000;
-            4'h8: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1111111;
-            4'h9: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b1111011;
-            default: {AR_SEG_A,AR_SEG_B,AR_SEG_C,AR_SEG_D,AR_SEG_E,AR_SEG_F,AR_SEG_G} = 7'b0000000;
+        case(current_digit)
+            4'd0: seg_data = 7'b1000000;
+            4'd1: seg_data = 7'b1111001;
+            4'd2: seg_data = 7'b0100100;
+            4'd3: seg_data = 7'b0110000;
+            4'd4: seg_data = 7'b0011001;
+            4'd5: seg_data = 7'b0010010;
+            4'd6: seg_data = 7'b0000010;
+            4'd7: seg_data = 7'b1111000;
+            4'd8: seg_data = 7'b0000000;
+            4'd9: seg_data = 7'b0010000;
+            default: seg_data = 7'b1111111;
         endcase
     end
 
-    // COM 제어 (active low)
     always @(*) begin
+        // Common line: digit_select에 해당하는 COM만 LOW (Common anode인 경우)
+        // 8자리 => AR_COM[7:0] (0일때 켜짐 가정)
         AR_COM = 8'b11111111;
-        AR_COM[digit_sel] = 0;
+        AR_COM[digit_select] = 0;
+    end
+
+    always @(posedge CLK or posedge RST) begin
+        if(RST) AR_SEG <= 7'b1111111;
+        else AR_SEG <= seg_data;
     end
 
 endmodule
