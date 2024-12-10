@@ -106,7 +106,7 @@ module dino_game_top(
     reg [31:0] obstacle_reg; // [1:0] pos0, [31:30] pos15
     reg [31:0] score;
     reg dino_jump; // 0: ground, 1: jump
-    reg [7:0] rand_num;
+    wire [7:0] rand_num;
 
     // LFSR for random
     lfsr_8bit lfsr_inst(.CLK(CLK), .RST(rst), .rand_out(rand_num));
