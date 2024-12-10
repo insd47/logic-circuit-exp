@@ -43,7 +43,25 @@ module main(
         input [31:0] flat;
         input [3:0] idx;
     begin
-        get_obstacle = flat[(2*idx)+1 : (2*idx)];
+        case (idx)
+            4'd0:  get_obstacle = flat[1:0];
+            4'd1:  get_obstacle = flat[3:2];
+            4'd2:  get_obstacle = flat[5:4];
+            4'd3:  get_obstacle = flat[7:6];
+            4'd4:  get_obstacle = flat[9:8];
+            4'd5:  get_obstacle = flat[11:10];
+            4'd6:  get_obstacle = flat[13:12];
+            4'd7:  get_obstacle = flat[15:14];
+            4'd8:  get_obstacle = flat[17:16];
+            4'd9:  get_obstacle = flat[19:18];
+            4'd10: get_obstacle = flat[21:20];
+            4'd11: get_obstacle = flat[23:22];
+            4'd12: get_obstacle = flat[25:24];
+            4'd13: get_obstacle = flat[27:26];
+            4'd14: get_obstacle = flat[29:28];
+            4'd15: get_obstacle = flat[31:30];
+            default: get_obstacle = 2'b00;
+        endcase
     end
     endfunction
 
