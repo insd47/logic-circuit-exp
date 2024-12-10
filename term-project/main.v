@@ -114,8 +114,6 @@ module main(
     wire trig_any_digit;
     wire trig_hash;
 
-    // trigger 모듈은 Rising Edge 감지용으로 구현했다고 가정
-    // triggered <= (!prev_signal_in && signal_in);
     trigger trig_digit (
         .clk(CLK),
         .rst(RST),
@@ -151,7 +149,7 @@ module main(
             timer_cnt <= 0;
             shift_enable <= 0;
         end else begin
-            if(timer_cnt < 250000) begin
+            if(timer_cnt < 200000) begin
                 timer_cnt <= timer_cnt + 1;
                 shift_enable <= 0;
             end else begin
@@ -161,7 +159,6 @@ module main(
         end
     end
 
-    // shift_enable Rising Edge 감지
     reg prev_shift_enable;
     always @(posedge CLK or posedge RST) begin
         if(RST) prev_shift_enable <= 0;
@@ -210,7 +207,6 @@ module main(
     assign AR_SEG_F = seg_f;
     assign AR_SEG_G = seg_g;
 
-    // 상태 전이
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             cur_state <= STATE_FONT_LOAD;
@@ -239,7 +235,6 @@ module main(
         endcase
     end
 
-    // start_game 제어
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             start_game <= 0;
@@ -258,7 +253,25 @@ module main(
         end
     endfunction
 
-    // 문자열 세팅
+    // 공룡 걷기 모션 결정 로직
+    // score >> 1의 LSB를 확인하여 0이면 8'h00, 1이면 8'h01
+    function [7:0] get_dino_char(
+        input dino_on_ground,
+        input [31:0] sc
+    );
+        begin
+            if(dino_on_ground) begin
+                if(((sc >> 1) & 1) == 0)
+                    get_dino_char = 8'h00;
+                else
+                    get_dino_char = 8'h01;
+            end else begin
+                // 점프 시 공룡 문자: 기존에 8'h02 사용
+                get_dino_char = 8'h02;
+            end
+        end
+    endfunction
+
     always @(*) begin
         TEXT_UPPER = "                ";
         TEXT_LOWER = "                ";
@@ -278,11 +291,14 @@ module main(
                     lower_line[i] = 8'h20;
                 end
 
-                // 공룡 표시 (점프시 위줄, 아니면 아래줄)
-                if(dino_on_ground)
-                    lower_line[0] = 8'h00;
-                else
-                    upper_line[0] = 8'h03;
+                // 공룡 표시: 걷기 모션 적용
+                if(dino_on_ground) begin
+                    // dino_on_ground일 때 get_dino_char로 결정
+                    lower_line[0] = get_dino_char(dino_on_ground, score);
+                end else begin
+                    // 점프 중에는 공룡 char = 8'h02
+                    upper_line[0] = get_dino_char(dino_on_ground, score);
+                end
 
                 // 장애물 표시
                 for(i=0;i<16;i=i+1) begin
@@ -308,12 +324,16 @@ module main(
             end
             STATE_GAME_OVER: begin
                 TEXT_UPPER = "GAME OVER       ";
+                TEXT_LOWER = {
+                    lower_line[0],lower_line[1],lower_line[2],lower_line[3],
+                    lower_line[4],lower_line[5],lower_line[6],lower_line[7],
+                    lower_line[8],lower_line[9],lower_line[10],lower_line[11],
+                    lower_line[12],lower_line[13],lower_line[14],lower_line[15]
+                };
             end
         endcase
     end
 
-    // LCD 갱신 로직
-    // 상태 변화 또는 shift_enable Rising Edge 시 LCD 업데이트
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             enable_lcd <= 0;
@@ -322,7 +342,6 @@ module main(
         end else begin
             // 상태 변화 감지
             if(prev_state != cur_state) begin
-                // 상태 바뀌면 LCD 갱신
                 enable_lcd <= 0;
                 enable_lcd_delay_state <= 1;
             end else if(enable_lcd_delay_state) begin
@@ -332,7 +351,6 @@ module main(
 
             // shift_enable Rising Edge 감지
             if(!prev_shift_enable && shift_enable) begin
-                // shift_enable 0->1 되면 LCD 갱신
                 enable_lcd <= 0;
                 enable_lcd_delay_shift <= 1;
             end else if(enable_lcd_delay_shift) begin
