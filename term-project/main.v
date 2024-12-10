@@ -293,10 +293,8 @@ module main(
 
                 // 공룡 표시: 걷기 모션 적용
                 if(dino_on_ground) begin
-                    // dino_on_ground일 때 get_dino_char로 결정
                     lower_line[0] = get_dino_char(dino_on_ground, score);
                 end else begin
-                    // 점프 중에는 공룡 char = 8'h02
                     upper_line[0] = get_dino_char(dino_on_ground, score);
                 end
 
