@@ -36,6 +36,7 @@ module main(
     integer i;
     reg [7:0] upper_line[0:15];
     reg [7:0] lower_line[0:15];
+    reg [1:0] obs_val;
 
     // font loader
     custom_font_loader font_loader (
@@ -241,7 +242,6 @@ module main(
 
                 // 장애물 표시
                 for(i=0;i<16;i=i+1) begin
-                    reg [1:0] obs_val;
                     obs_val = obstacle_map_flat[2*i+1:2*i];
                     if(obs_val != 2'b00) begin
                         lower_line[i] = 8'h04;
