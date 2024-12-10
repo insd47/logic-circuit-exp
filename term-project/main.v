@@ -1,4 +1,4 @@
-module dino_game_top(
+module main(
     input wire CLK,          // 1MHz
     input wire RESETN,       // active low
     input wire [9:0] KEY,    // keypad 0~9
@@ -106,8 +106,7 @@ module dino_game_top(
     reg [31:0] obstacle_reg; // [1:0] pos0, [31:30] pos15
     reg [31:0] score;
     reg dino_jump; // 0: ground, 1: jump
-    wire [7:0] rand_num;
-
+    wire [7:0] rand_num; // wire 타입으로 선언
     // LFSR for random
     lfsr_8bit lfsr_inst(.CLK(CLK), .RST(rst), .rand_out(rand_num));
 
@@ -123,6 +122,19 @@ module dino_game_top(
         end
     end
 
+    // 문자열 길이 16자로 맞추기
+    // "    PRESS ANY KE" (16자)
+    // "  TO START GAME " (16자)
+    // 메인 화면:
+    // upper_str: "    PRESS ANY KE"
+    // lower_str: {8'h00,"  TO START GAME "}
+    // 게임 시작 후:
+    // upper_str: "                "
+    // lower_str: {8'h00,8'h02,"           ",8'h04,"  "} 총16자 되도록 공백 추가
+    // 게임 오버:
+    // upper_str: "    GAME OVER   "
+    // lower_str: {8'h04,"         ",8'h03,"     "} 총16자
+
     always @(posedge CLK or posedge rst) begin
         if(rst) begin
             game_state <= ST_LOAD_FONT;
@@ -137,8 +149,8 @@ module dino_game_top(
             ST_LOAD_FONT: begin
                 if(font_loader_done) begin
                     game_state <= ST_MAIN;
-                    upper_str <= "    PRESS ANY KEY";
-                    lower_str <= {8'h00,"  TO START GAME"};
+                    upper_str <= "    PRESS ANY KE";
+                    lower_str <= {8'h00,"  TO START GAME "};
                 end
             end
             ST_MAIN: begin
@@ -149,7 +161,7 @@ module dino_game_top(
                     dino_jump <= 0;
                     jump_cnt <= 0;
                     upper_str <= "                ";
-                    lower_str <= {8'h00,8'h02,"           ",8'h04};
+                    lower_str <= {8'h00,8'h02,"           ",8'h04,"  "};
                 end
             end
             ST_GAME: begin
@@ -195,93 +207,78 @@ module dino_game_top(
                         game_state <= ST_GAME_OVER;
                     end
 
-                    // LCD 업데이트: i 사용 없이 하드코딩
+                    // LCD 업데이트
                     line2[0] = dino_jump ? 8'h02 : 8'h00;
-                    // line2[1]
                     case(obstacle_reg[3:2])
                         2'b01: line2[1]=8'h03;
                         2'b10: line2[1]=8'h04;
                         default: line2[1]=8'h20;
                     endcase
-                    // line2[2]
                     case(obstacle_reg[5:4])
                         2'b01: line2[2]=8'h03;
                         2'b10: line2[2]=8'h04;
                         default: line2[2]=8'h20;
                     endcase
-                    // line2[3]
                     case(obstacle_reg[7:6])
                         2'b01: line2[3]=8'h03;
                         2'b10: line2[3]=8'h04;
                         default: line2[3]=8'h20;
                     endcase
-                    // line2[4]
                     case(obstacle_reg[9:8])
                         2'b01: line2[4]=8'h03;
                         2'b10: line2[4]=8'h04;
                         default: line2[4]=8'h20;
                     endcase
-                    // line2[5]
                     case(obstacle_reg[11:10])
                         2'b01: line2[5]=8'h03;
                         2'b10: line2[5]=8'h04;
                         default: line2[5]=8'h20;
                     endcase
-                    // line2[6]
                     case(obstacle_reg[13:12])
                         2'b01: line2[6]=8'h03;
                         2'b10: line2[6]=8'h04;
                         default: line2[6]=8'h20;
                     endcase
-                    // line2[7]
                     case(obstacle_reg[15:14])
                         2'b01: line2[7]=8'h03;
                         2'b10: line2[7]=8'h04;
                         default: line2[7]=8'h20;
                     endcase
-                    // line2[8]
                     case(obstacle_reg[17:16])
                         2'b01: line2[8]=8'h03;
                         2'b10: line2[8]=8'h04;
                         default: line2[8]=8'h20;
                     endcase
-                    // line2[9]
                     case(obstacle_reg[19:18])
                         2'b01: line2[9]=8'h03;
                         2'b10: line2[9]=8'h04;
                         default: line2[9]=8'h20;
                     endcase
-                    // line2[10]
                     case(obstacle_reg[21:20])
                         2'b01: line2[10]=8'h03;
                         2'b10: line2[10]=8'h04;
                         default: line2[10]=8'h20;
                     endcase
-                    // line2[11]
                     case(obstacle_reg[23:22])
                         2'b01: line2[11]=8'h03;
                         2'b10: line2[11]=8'h04;
                         default: line2[11]=8'h20;
                     endcase
-                    // line2[12]
                     case(obstacle_reg[25:24])
                         2'b01: line2[12]=8'h03;
                         2'b10: line2[12]=8'h04;
                         default: line2[12]=8'h20;
                     endcase
-                    // line2[13]
                     case(obstacle_reg[27:26])
                         2'b01: line2[13]=8'h03;
                         2'b10: line2[13]=8'h04;
                         default: line2[13]=8'h20;
                     endcase
-                    // line2[14]
                     case(obstacle_reg[29:28])
                         2'b01: line2[14]=8'h03;
                         2'b10: line2[14]=8'h04;
                         default: line2[14]=8'h20;
                     endcase
-                    // line2[15]
                     case(obstacle_reg[31:30])
                         2'b01: line2[15]=8'h03;
                         2'b10: line2[15]=8'h04;
@@ -296,12 +293,13 @@ module dino_game_top(
                 end
             end
             ST_GAME_OVER: begin
-                upper_str <= "    GAME OVER    ";
-                lower_str <= {8'h04,"         ",8'h03,"   "};
+                upper_str <= "    GAME OVER   "; // 16자 맞춤
+                lower_str <= {8'h04,"         ",8'h03,"     "};
+                // 8'h04(1) + 9 spaces(10) +8'h03(11) +5 spaces(16) 총 16자
                 if(any_key_trigger) begin
                     game_state <= ST_MAIN;
-                    upper_str <= "    PRESS ANY KEY";
-                    lower_str <= {8'h00,"  TO START GAME"};
+                    upper_str <= "    PRESS ANY KE";
+                    lower_str <= {8'h00,"  TO START GAME "};
                 end
             end
             endcase
@@ -315,7 +313,7 @@ module dino_game_top(
 
     always @(posedge CLK or posedge rst) begin
         if(rst) bcd_start <= 0;
-        else if(quarter_sec_pulse) bcd_start <= 1;
+        else if(quarter_sec_pulse) bcd_start <= 1; // 매 0.25초마다 점수 변환 시작
         else if(bcd_done) bcd_start <= 0;
     end
 
