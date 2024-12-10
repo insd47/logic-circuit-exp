@@ -12,8 +12,8 @@ always @(posedge clk or posedge rst) begin
         prev_signal_in <= 1'b0;
         triggered <= 1'b0;
     end else begin
-        triggered <= (!prev_signal_in && signal_in); // 상승 에지 감지
         prev_signal_in <= signal_in;
+        triggered <= (prev_signal_in && !signal_in); // 이전 로직 유지
     end
 end
 

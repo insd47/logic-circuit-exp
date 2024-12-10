@@ -1,40 +1,46 @@
 module tlcd_controller(
-    input wire RESETN,                      // Active low reset
-    input wire CLK,                         // System clock (1 MHz)
-    input wire ENABLE,                      // Start signal
-    output reg TLCD_E,                      // LCD E pin
-    output reg TLCD_RS,                     // LCD RS pin
-    output reg TLCD_RW,                     // LCD RW pin
-    output reg [7:0] TLCD_DATA,             // LCD data bus
-    input wire [8*16-1:0] TEXT_STRING_UPPER,// Upper line text (16 bytes)
-    input wire [8*16-1:0] TEXT_STRING_LOWER // Lower line text (16 bytes)
+    input wire RESETN,
+    input wire CLK,
+    input wire ENABLE,
+    output reg TLCD_E,
+    output reg TLCD_RS,
+    output reg TLCD_RW,
+    output reg [7:0] TLCD_DATA,
+    input wire [8*16-1:0] TEXT_STRING_UPPER,
+    input wire [8*16-1:0] TEXT_STRING_LOWER
 );
 
-    // Timing parameters (in clock cycles)
-    parameter E_PULSE_WIDTH = 1;    // 1 μs pulse width for E
-    parameter EXEC_TIME = 40;       // 40 μs execution time for most commands
-    parameter CLEAR_EXEC_TIME = 1640; // 1.64 ms execution time for clear display
+    // 타이밍 파라미터를 크게 증가
+    parameter E_PULSE_WIDTH = 200;    // 약 200µs
+    parameter EXEC_TIME = 1000;       // 1ms 실행 시간
+    parameter CLEAR_EXEC_TIME = 2000; // 2ms 이상
+    parameter INIT_DELAY = 20000;     // 20ms 초기 대기
 
-    // State definition
-    reg [4:0] STATE;
-    parameter IDLE = 5'd0,
-              FUNCTION_SET = 5'd1,
-              FUNCTION_SET_WAIT = 5'd2,
-              DISP_ONOFF = 5'd3,
-              DISP_ONOFF_WAIT = 5'd4,
-              ENTRY_MODE = 5'd5,
-              ENTRY_MODE_WAIT = 5'd6,
-              CLEAR_DISP = 5'd7,
-              CLEAR_DISP_WAIT = 5'd8,
-              LINE1_ADDR = 5'd9,
-              LINE1_ADDR_WAIT = 5'd10,
-              LINE1_WRITE = 5'd11,
-              LINE1_WRITE_WAIT = 5'd12,
-              LINE2_ADDR = 5'd13,
-              LINE2_ADDR_WAIT = 5'd14,
-              LINE2_WRITE = 5'd15,
-              LINE2_WRITE_WAIT = 5'd16,
-              DONE = 5'd17;
+    // 상태 정의
+    reg [5:0] STATE;
+    parameter IDLE = 6'd0,
+              INIT_WAIT = 6'd1,        // 초기 20ms 대기
+              FUNCTION_SET1 = 6'd2,
+              FUNCTION_SET1_WAIT = 6'd3,
+              FUNCTION_SET2 = 6'd4,
+              FUNCTION_SET2_WAIT = 6'd5,
+              FUNCTION_SET3 = 6'd6,
+              FUNCTION_SET3_WAIT = 6'd7,
+              DISP_ONOFF = 6'd8,
+              DISP_ONOFF_WAIT = 6'd9,
+              ENTRY_MODE = 6'd10,
+              ENTRY_MODE_WAIT = 6'd11,
+              CLEAR_DISP = 6'd12,
+              CLEAR_DISP_WAIT = 6'd13,
+              LINE1_ADDR = 6'd14,
+              LINE1_ADDR_WAIT = 6'd15,
+              LINE1_WRITE = 6'd16,
+              LINE1_WRITE_WAIT = 6'd17,
+              LINE2_ADDR = 6'd18,
+              LINE2_ADDR_WAIT = 6'd19,
+              LINE2_WRITE = 6'd20,
+              LINE2_WRITE_WAIT = 6'd21,
+              DONE = 6'd22;
 
     reg [15:0] CNT;
     reg [4:0] char_index;
@@ -57,27 +63,69 @@ module tlcd_controller(
                     CNT <= 0;
                     TLCD_E <= 1'b0;
                     if (ENABLE && !prev_ENABLE) begin
-                        STATE <= FUNCTION_SET;
+                        STATE <= INIT_WAIT;
                     end
                 end
-                FUNCTION_SET: begin
+                INIT_WAIT: begin
+                    CNT <= CNT + 1;
+                    if (CNT >= INIT_DELAY) begin
+                        CNT <= 0;
+                        STATE <= FUNCTION_SET1;
+                    end
+                end
+                // Function Set #1
+                FUNCTION_SET1: begin
                     TLCD_RS <= 1'b0;
                     TLCD_RW <= 1'b0;
-                    TLCD_DATA <= 8'b00111000; // Function Set command
+                    // 8bit 2line 5x8dots
+                    TLCD_DATA <= 8'b00111000;
                     TLCD_E <= 1'b1;
                     CNT <= 0;
-                    STATE <= FUNCTION_SET_WAIT;
+                    STATE <= FUNCTION_SET1_WAIT;
                 end
-                FUNCTION_SET_WAIT: begin
+                FUNCTION_SET1_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
+                    if (CNT >= EXEC_TIME) begin
+                        CNT <= 0;
+                        STATE <= FUNCTION_SET2;
                     end
+                end
+                // Function Set #2
+                FUNCTION_SET2: begin
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
+                    TLCD_DATA <= 8'b00111000;
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= FUNCTION_SET2_WAIT;
+                end
+                FUNCTION_SET2_WAIT: begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
+                    if (CNT >= EXEC_TIME) begin
+                        CNT <= 0;
+                        STATE <= FUNCTION_SET3;
+                    end
+                end
+                // Function Set #3
+                FUNCTION_SET3: begin
+                    TLCD_RS <= 1'b0;
+                    TLCD_RW <= 1'b0;
+                    TLCD_DATA <= 8'b00111000;
+                    TLCD_E <= 1'b1;
+                    CNT <= 0;
+                    STATE <= FUNCTION_SET3_WAIT;
+                end
+                FUNCTION_SET3_WAIT: begin
+                    CNT <= CNT + 1;
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         STATE <= DISP_ONOFF;
                     end
                 end
+
                 DISP_ONOFF: begin
                     TLCD_RS <= 1'b0;
                     TLCD_RW <= 1'b0;
@@ -88,9 +136,7 @@ module tlcd_controller(
                 end
                 DISP_ONOFF_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
-                    end
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         STATE <= ENTRY_MODE;
@@ -106,9 +152,7 @@ module tlcd_controller(
                 end
                 ENTRY_MODE_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
-                    end
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         STATE <= CLEAR_DISP;
@@ -124,9 +168,7 @@ module tlcd_controller(
                 end
                 CLEAR_DISP_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
-                    end
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= CLEAR_EXEC_TIME) begin
                         CNT <= 0;
                         STATE <= LINE1_ADDR;
@@ -135,16 +177,14 @@ module tlcd_controller(
                 LINE1_ADDR: begin
                     TLCD_RS <= 1'b0;
                     TLCD_RW <= 1'b0;
-                    TLCD_DATA <= 8'b10000000; // Line 1 starting address
+                    TLCD_DATA <= 8'b10000000; // Line 1 start
                     TLCD_E <= 1'b1;
                     CNT <= 0;
                     STATE <= LINE1_ADDR_WAIT;
                 end
                 LINE1_ADDR_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
-                    end
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         char_index <= 0;
@@ -165,9 +205,7 @@ module tlcd_controller(
                 end
                 LINE1_WRITE_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
-                    end
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         char_index <= char_index + 1;
@@ -177,16 +215,14 @@ module tlcd_controller(
                 LINE2_ADDR: begin
                     TLCD_RS <= 1'b0;
                     TLCD_RW <= 1'b0;
-                    TLCD_DATA <= 8'b11000000; // Line 2 starting address
+                    TLCD_DATA <= 8'b11000000; // Line 2 start
                     TLCD_E <= 1'b1;
                     CNT <= 0;
                     STATE <= LINE2_ADDR_WAIT;
                 end
                 LINE2_ADDR_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
-                    end
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         char_index <= 0;
@@ -207,9 +243,7 @@ module tlcd_controller(
                 end
                 LINE2_WRITE_WAIT: begin
                     CNT <= CNT + 1;
-                    if (CNT >= E_PULSE_WIDTH) begin
-                        TLCD_E <= 1'b0;
-                    end
+                    if (CNT >= E_PULSE_WIDTH) TLCD_E <= 1'b0;
                     if (CNT >= EXEC_TIME) begin
                         CNT <= 0;
                         char_index <= char_index + 1;
@@ -217,12 +251,9 @@ module tlcd_controller(
                     end
                 end
                 DONE: begin
-                    // Update complete, return to IDLE or wait for next ENABLE
                     STATE <= IDLE;
                 end
-                default: begin
-                    STATE <= IDLE;
-                end
+                default: STATE <= IDLE;
             endcase
         end
     end
