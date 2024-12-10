@@ -229,12 +229,6 @@ module main(
         endcase
     end
 
-    // enable_lcd 제어
-    always @(posedge CLK or posedge RST) begin
-        if(RST) enable_lcd <= 0;
-        else if(font_loader_done) enable_lcd <= 1;
-    end
-
     // start_game 제어
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
