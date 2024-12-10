@@ -308,7 +308,6 @@ module main(
             end
             STATE_GAME_OVER: begin
                 TEXT_UPPER = "GAME OVER       ";
-                TEXT_LOWER = {8'h04,"         ",8'h03," "};
             end
         endcase
     end

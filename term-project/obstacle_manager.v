@@ -18,6 +18,9 @@ module obstacle_manager(
     reg any_obs;
     reg [3:0] jump_cnt;
 
+    // 점프 요청 래치
+    reg jump_latch;
+
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             for(idx=0; idx<16; idx=idx+1)
@@ -26,7 +29,13 @@ module obstacle_manager(
             jump_cnt <= 0;
             score <= 0;
             game_over <= 0;
+            jump_latch <= 0; // 점프 래치 초기화
         end else begin
+            // jump_trigger가 발생하면 jump_latch를 세팅
+            // 이 래치는 shift_enable이 발생할 때까지 유지됨
+            if(jump_trigger && dino_on_ground)
+                jump_latch <= 1;
+
             if(start_game) begin
                 for(idx=0; idx<16; idx=idx+1)
                     obstacles[idx] <= 2'b00;
@@ -34,6 +43,7 @@ module obstacle_manager(
                 jump_cnt <= 0;
                 score <= 0;
                 game_over <= 0;
+                jump_latch <= 0; // 게임 시작 시 래치 초기화
             end else if(!game_over && shift_enable) begin
                 // 장애물 이동
                 for(idx=0; idx<15; idx=idx+1)
@@ -53,9 +63,11 @@ module obstacle_manager(
                 end
 
                 // 점프 상태 갱신
-                if(jump_trigger && dino_on_ground) begin
+                // 여기서 jump_trigger 대신 jump_latch를 확인
+                if(jump_latch && dino_on_ground) begin
                     dino_on_ground <= 0;
                     jump_cnt <= 2;
+                    jump_latch <= 0; // 점프 반영 후 래치 초기화
                 end else if(!dino_on_ground) begin
                     if(jump_cnt > 0) jump_cnt <= jump_cnt - 1;
                     else dino_on_ground <= 1;
