@@ -28,7 +28,6 @@ module main(
     reg [1:0] cur_state, next_state;
 
     wire font_loader_done;
-    reg enable_lcd;
     wire TLCD_E_font, TLCD_RS_font, TLCD_RW_font;
     wire [7:0] TLCD_DATA_font;
 
@@ -38,6 +37,7 @@ module main(
     // Text LCD 문자열
     reg [8*16-1:0] TEXT_UPPER;
     reg [8*16-1:0] TEXT_LOWER;
+    reg enable_lcd;
 
     // 16x2 LCD에 표시할 문자열
     integer i;
@@ -257,6 +257,7 @@ module main(
 
     // LCD 문자 세팅
     always @(*) begin
+        enable_lcd <= 0;
         case(cur_state)
             STATE_FONT_LOAD: begin
                 TEXT_UPPER = "LOADING FONTS...  ";
@@ -306,6 +307,7 @@ module main(
                 TEXT_LOWER = "                ";
             end
         endcase
+        enable_lcd <= 1;
     end
 
 endmodule
