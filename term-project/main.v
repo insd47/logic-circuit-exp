@@ -9,9 +9,16 @@ module main(
     output wire TLCD_RW,
     output wire [7:0] TLCD_DATA,
     // 7-Segment
-    output wire [6:0] AR_SEG_AtoG,
-    output wire [7:0] Com
+    output wire AR_SEG_A,
+    output wire AR_SEG_B,
+    output wire AR_SEG_C,
+    output wire AR_SEG_D,
+    output wire AR_SEG_E,
+    output wire AR_SEG_F,
+    output wire AR_SEG_G,
+    output wire [7:0] AR_COM
 );
+
     // 상태 정의
     localparam STATE_FONT_LOAD = 0;
     localparam STATE_MAIN_MENU = 1;
@@ -172,25 +179,30 @@ module main(
     );
 
     // 7-Segment
-    wire [6:0] AR_SEG_AtoG_w;
     wire [7:0] com_out;
+    wire seg_a, seg_b, seg_c, seg_d, seg_e, seg_f, seg_g;
     seg_controller segc(
         .CLK(CLK),
         .RST(RST),
         .BINARY_SCORE((cur_state == STATE_GAME || cur_state == STATE_GAME_OVER) ? score : 0),
         .Com(com_out),
-        .AR_SEG_A(AR_SEG_AtoG_w[6]),
-        .AR_SEG_B(AR_SEG_AtoG_w[5]),
-        .AR_SEG_C(AR_SEG_AtoG_w[4]),
-        .AR_SEG_D(AR_SEG_AtoG_w[3]),
-        .AR_SEG_E(AR_SEG_AtoG_w[2]),
-        .AR_SEG_F(AR_SEG_AtoG_w[1]),
-        .AR_SEG_G(AR_SEG_AtoG_w[0])
+        .AR_SEG_A(seg_a),
+        .AR_SEG_B(seg_b),
+        .AR_SEG_C(seg_c),
+        .AR_SEG_D(seg_d),
+        .AR_SEG_E(seg_e),
+        .AR_SEG_F(seg_f),
+        .AR_SEG_G(seg_g)
     );
 
-    // AR_SEG_AtoG_w는 A-G를 [6:0]으로 묶어서 상위에 할당
-    assign AR_SEG_AtoG = AR_SEG_AtoG_w;
-    assign Com = com_out;
+    assign AR_COM = com_out;
+    assign AR_SEG_A = seg_a;
+    assign AR_SEG_B = seg_b;
+    assign AR_SEG_C = seg_c;
+    assign AR_SEG_D = seg_d;
+    assign AR_SEG_E = seg_e;
+    assign AR_SEG_F = seg_f;
+    assign AR_SEG_G = seg_g;
 
     // 상태 전이
     always @(posedge CLK or posedge RST) begin
@@ -236,7 +248,6 @@ module main(
     end
 
     // obstacle_map_flat에서 각 칸을 읽어 LCD에 표현
-    // obstacle_map_flat[2*i+1:2*i] == 2'b00: 없음, 2'b01, 2'b10: 장애물
     function [7:0] get_char_for_obstacle(input [1:0] obs_val);
         begin
             if(obs_val == 2'b00) get_char_for_obstacle = 8'h20; // space

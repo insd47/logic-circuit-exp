@@ -13,7 +13,8 @@ always @(posedge clk or posedge rst) begin
         triggered <= 1'b0;
     end else begin
         prev_signal_in <= signal_in;
-        triggered <= (prev_signal_in && !signal_in); // 이전 로직 유지
+        // 0->1 전이를 감지하기 위한 논리
+        triggered <= (!prev_signal_in && signal_in);
     end
 end
 
