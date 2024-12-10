@@ -4,41 +4,62 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="22a53bf7-b2a8-405a-851e-54594e1bea60" name="Changes" comment="" />
+    <list default="true" id="22a53bf7-b2a8-405a-851e-54594e1bea60" name="Changes" comment="v5 (클럭을 1Mhz로 가정, 타이밍 조정)" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "insd47"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/insd47/logic-circuit-exp.git",
+    "accountId": "009a8752-1223-435b-896d-46028a3e3188"
+  }
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 3
 }</component>
   <component name="ProjectId" id="2pNENuIpIos175kfykdh3sdTHdk" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/insd47/Developer/IdeaProjects/pnu/2024/logic-circuit-exp&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Artifacts&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.lookFeel&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/insd47/Developer/IdeaProjects/pnu/2024/logic-circuit-exp",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Artifacts",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.2",
+    "settings.editor.selected.configurable": "preferences.lookFeel",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/term-project" />
       <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/.prompt" />
+      <recent name="$PROJECT_DIR$/term-project/.prompt" />
+      <recent name="$PROJECT_DIR$/term-project/text-lcd/(prompt)" />
+      <recent name="$PROJECT_DIR$/term-project" />
     </key>
   </component>
   <component name="SharedIndexes">
@@ -59,11 +80,131 @@
       <updated>1732598096115</updated>
       <workItem from="1732598097238" duration="524000" />
       <workItem from="1732598625923" duration="20789000" />
-      <workItem from="1733214389170" duration="1413000" />
+      <workItem from="1733214389170" duration="13394000" />
     </task>
+    <task id="LOCAL-00001" summary="text lcd test code">
+      <option name="closed" value="true" />
+      <created>1733220145352</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1733220145352</updated>
+    </task>
+    <task id="LOCAL-00002" summary="project structure">
+      <option name="closed" value="true" />
+      <created>1733220378229</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1733220378229</updated>
+    </task>
+    <task id="LOCAL-00003" summary="idea folder gitignore">
+      <option name="closed" value="true" />
+      <created>1733220458398</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1733220458398</updated>
+    </task>
+    <task id="LOCAL-00004" summary="no markdown file uploads">
+      <option name="closed" value="true" />
+      <created>1733220508063</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1733220508063</updated>
+    </task>
+    <task id="LOCAL-00005" summary="change wrong spaces">
+      <option name="closed" value="true" />
+      <created>1733221199554</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1733221199554</updated>
+    </task>
+    <task id="LOCAL-00006" summary="v2">
+      <option name="closed" value="true" />
+      <created>1733222468544</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1733222468544</updated>
+    </task>
+    <task id="LOCAL-00007" summary="v3 (tlcd-controller)">
+      <option name="closed" value="true" />
+      <created>1733223051896</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1733223051896</updated>
+    </task>
+    <task id="LOCAL-00008" summary="rollback (v2)">
+      <option name="closed" value="true" />
+      <created>1733223457407</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1733223457407</updated>
+    </task>
+    <task id="LOCAL-00009" summary="rollback tlcd_controller (v1)">
+      <option name="closed" value="true" />
+      <created>1733223538313</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1733223538313</updated>
+    </task>
+    <task id="LOCAL-00010" summary="rollback font_loader (v1)">
+      <option name="closed" value="true" />
+      <created>1733224345520</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1733224345520</updated>
+    </task>
+    <task id="LOCAL-00011" summary="v4">
+      <option name="closed" value="true" />
+      <created>1733225544410</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1733225544410</updated>
+    </task>
+    <task id="LOCAL-00012" summary="v4">
+      <option name="closed" value="true" />
+      <created>1733226928755</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1733226928755</updated>
+    </task>
+    <task id="LOCAL-00013" summary="v5 (클럭을 1Mhz로 가정, 타이밍 조정)">
+      <option name="closed" value="true" />
+      <created>1733227681940</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1733227681940</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="text lcd test code" />
+    <MESSAGE value="project structure" />
+    <MESSAGE value="idea folder gitignore" />
+    <MESSAGE value="no markdown file uploads" />
+    <MESSAGE value="change wrong spaces" />
+    <MESSAGE value="v2" />
+    <MESSAGE value="v3 (tlcd-controller)" />
+    <MESSAGE value="rollback (v2)" />
+    <MESSAGE value="rollback tlcd_controller (v1)" />
+    <MESSAGE value="rollback font_loader (v1)" />
+    <MESSAGE value="v4" />
+    <MESSAGE value="v5 (클럭을 1Mhz로 가정, 타이밍 조정)" />
+    <option name="LAST_COMMIT_MESSAGE" value="v5 (클럭을 1Mhz로 가정, 타이밍 조정)" />
   </component>
 </project>
