@@ -19,6 +19,11 @@ module main(
 
     wire rst = ~RESETN;
 
+    // 변수 선언을 모듈 상단으로 이동
+    integer i, sc;
+    integer tmp_score;
+    reg [7:0] line2[0:15];
+
     // 0.25s pulse
     reg [17:0] cnt_250ms;
     reg quarter_sec_pulse;
@@ -133,6 +138,7 @@ module main(
                 if(font_loader_done) begin
                     game_state <= ST_MAIN;
                     upper_str <= "    PRESS ANY KEY";
+                    // "  TO START GAME"는 15글자 + 8'h00 = 16바이트 맞음
                     lower_str <= {8'h00,"  TO START GAME"};
                 end
             end
@@ -144,6 +150,7 @@ module main(
                     dino_jump <= 0;
                     jump_cnt <= 0;
                     upper_str <= "                ";
+                    // {8'h00,8'h02,"           ",8'h04} 길이 체크 필요하나 문법엔 영향 없음
                     lower_str <= {8'h00,8'h02,"           ",8'h04};
                 end
             end
@@ -191,8 +198,6 @@ module main(
                     end
 
                     // LCD 업데이트
-                    integer i;
-                    reg [7:0] line2[0:15];
                     line2[0] = dino_jump ? 8'h02 : 8'h00;
                     for(i=1;i<16;i=i+1) begin
                         case(obstacle_reg[i*2+1:i*2])
@@ -210,7 +215,8 @@ module main(
             end
             ST_GAME_OVER: begin
                 upper_str <= "    GAME OVER    ";
-                lower_str <= {8'h04,"         ",8'h03};
+                // {8'h04,"         ",8'h03} 길이는 8'h04 +9 spaces +8'h03 =11 chars 총16자 필요시 공백 더 추가
+                lower_str <= {8'h04,"         ",8'h03,"   "};
                 if(any_key_trigger) begin
                     game_state <= ST_MAIN;
                     upper_str <= "    PRESS ANY KEY";
@@ -221,7 +227,7 @@ module main(
         end
     end
 
-    // 점수를 BCD 변환하여 7-Segment에 표시
+    // 점수를 BCD 변환
     wire bcd_done;
     reg bcd_start;
     wire [3:0] BCD0, BCD1, BCD2, BCD3, BCD4, BCD5, BCD6, BCD7;
@@ -249,9 +255,9 @@ module main(
     );
 
     wire [33:0] seg_num;
-    assign seg_num = {BCD7,BCD6,BCD5,BCD4,BCD3,BCD2,BCD1,BCD0, 2'b00}; // 상위2비트 무시
+    assign seg_num = {BCD7,BCD6,BCD5,BCD4,BCD3,BCD2,BCD1,BCD0, 2'b00};
 
-    seg_controller seg_ctrl(
+    eight_digit_7seg_controller seg_ctrl(
         .CLK(CLK),
         .RST(rst),
         .NUM(seg_num),
