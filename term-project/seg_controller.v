@@ -12,43 +12,68 @@ module seg_controller (
     output reg AR_SEG_F,
     output reg AR_SEG_G
 );
-
     integer i;
     reg [31:0] value;
     reg [3:0] digits[7:0];
-    reg leading_zero_found;
+
+    // "공백" 표기에 쓸 값
+    localparam BLANK = 4'hF;  // decode_seg에서 default -> 7'b0000000
 
     always @(*) begin
+        // BINARY_SCORE를 10진수로 분해, LSB->MSB로 digits[] 저장
+        // digits[0] = 일의 자리, digits[7] = 10^7 자리
         value = BINARY_SCORE;
-        leading_zero_found = 0;
         for (i=0; i<8; i=i+1) begin
-            // 우측부터(LSB) 자릿수 분리
             digits[i] = value % 10;
             value = value / 10;
         end
     end
 
-    // MUX로 8개 자릿수를 순환 표시하기 위한 카운터
-    reg [2:0] digit_select;
-    reg [15:0] mux_cnt;
+    // 디스플레이할 자리(공백 처리 결과)
+    reg [3:0] display_digits[7:0];
 
+    // 먼저 MUX로 8개 자릿수를 순환 표시하기 위한 카운터
+    reg [15:0] mux_cnt;
     always @(posedge CLK or posedge RST) begin
         if(RST) mux_cnt <= 0;
         else mux_cnt <= mux_cnt + 1;
     end
 
+    wire [2:0] digit_select = mux_cnt[12:10]; // 약 2kHz 스캔
+
+    // 선행 0(leading zero) → 공백 처리
+    reg found_nonzero;
+    integer j;
+
     always @(*) begin
-        digit_select = mux_cnt[12:10]; // 약 2kHz 정도로 자리 스캔
+        // 초기 display_digits 모두 공백으로
+        for(j=0; j<8; j=j+1) begin
+            display_digits[j] = BLANK;
+        end
+
+        found_nonzero = 1'b0;
+        // 가장 상위 자리(digits[7])부터 내려오면서 확인
+        for(j=7; j>=0; j=j-1) begin
+            if(!found_nonzero) begin
+                if(digits[j] != 4'd0) begin
+                    found_nonzero = 1'b1;
+                    display_digits[j] = digits[j];
+                end
+                else begin
+                    display_digits[j] = BLANK; // 선행 0 → 공백
+                end
+            end else begin
+                // 이미 비영 숫자를 만났으면 digits 그대로
+                display_digits[j] = digits[j];
+            end
+
+            // j==0에서 j-1= -1 이 되어 for 문이 끝날 때
+            // 시뮬레이션상 disable 문제 없도록, synthesis할 땐 큰 문제는 없음
+            if(j==0) disable loop_check; 
+        end
     end
 
-    reg [6:0] seg_data;
-
-    // 각 자리의 숫자를 세븐세그로 디코딩
-    // 여기서 'leading zeros' 대신 공백을 출력하기 위해
-    // 실제로는 'digits' 배열을 뒤집어서 판단해야 하지만
-    // (실제로 자리 선택은 digit_select에 따라 역순으로 표시)
-    // 간단화하여, 실제 표시 시점에 '이 자리가 BINARY_SCORE의 유효 자릿수 이상인가?' 판단
-    // → 여기서는 4'hF 를 공백(7'b0000000) 처리로 사용
+    // 세그먼트 디코딩 함수
     function [6:0] decode_seg;
         input [3:0] d;
         begin
@@ -63,36 +88,25 @@ module seg_controller (
                 4'd7: decode_seg = 7'b1110010; // 7
                 4'd8: decode_seg = 7'b1111111; // 8
                 4'd9: decode_seg = 7'b1111011; // 9
-                default: decode_seg = 7'b0000000; // 공백
+                default: decode_seg = 7'b0000000; // BLANK (4'hF 등)
             endcase
         end
     endfunction
 
-    // "leading zero -> blank"를 위해, 실제 값이 0인지 여부를 체크
-    // digit_select에 따라, 해당 자리가 "남은 value"가 없는 자리면 공백
-    // → 다만 완벽한 우측 정렬 표현을 위해서는
-    //    남은 큰 자리부터 0인 경우 계속 공백으로 처리해야 함
-    // 여기서는 최대 단순화하여 BINARY_SCORE가 0 이상이면
-    // digit_select 인덱스보다 더 큰 자릿수가 이미 0이라면 공백 처리.
-    // (정석 구현에는 '숫자를 분해하면서 아직 비유효 자리면 F'로 마킹하는 방법이 더 직관적)
-    reg [31:0] temp_value;
-    reg [3:0] reorder_digit;
-
+    reg [6:0] seg_data;
     always @(*) begin
-        // 세그먼트 표시 순서는 "digit_select"에 따라 digits[digit_select] 선택
-        reorder_digit = digits[digit_select];
-        // decode
-        seg_data = decode_seg(reorder_digit);
+        // digit_select=0이면 가장 왼쪽(Com[7]) 표시, digit_select=7이면 Com[0]
+        //  → display_digits[7 - digit_select] 사용
+        seg_data = decode_seg(display_digits[7 - digit_select]);
     end
 
-    // 공통(com) 신호
+    // 공통 신호
     always @(*) begin
         Com = 8'b11111111;
-        // digit_select 값에 따라 하나만 0으로 만들어 해당 자리 켜기
         Com[7 - digit_select] = 1'b0;
     end
 
-    // 최종 출력
+    // 출력
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             {AR_SEG_A, AR_SEG_B, AR_SEG_C, AR_SEG_D, AR_SEG_E, AR_SEG_F, AR_SEG_G} <= 7'b1111111;

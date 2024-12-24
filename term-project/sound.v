@@ -5,11 +5,11 @@ module sound (
     output reg piezo_out
 );
 
-    // 분주(4옥타브 미(약 659Hz) → 1MHz / 659 ≈ 1517)
-    localparam DIV_COUNT = 1517;
+    // 분주(6옥타브 미(약 2637Hz) → 1MHz / 2637 ≈ 379)
+    localparam DIV_COUNT = 379;
     // 재생 시간(0.2초)
     localparam DURATION = 200000;
-
+4
     // 간단 상태기: IDLE → PLAYING
     reg [1:0] state;
     localparam IDLE = 2'd0,

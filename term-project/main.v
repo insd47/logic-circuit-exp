@@ -347,8 +347,14 @@ module main(
             end
 
             2'd3: begin // STATE_GAME_OVER
-                TEXT_UPPER = "GAME OVER        ";
-                TEXT_LOWER = " PRESS ANY KEY/# ";
+                TEXT_UPPER = "GAME OVER       ";
+                
+                TEXT_LOWER = {
+                    lower_line[0],lower_line[1],lower_line[2],lower_line[3],
+                    lower_line[4],lower_line[5],lower_line[6],lower_line[7],
+                    lower_line[8],lower_line[9],lower_line[10],lower_line[11],
+                    lower_line[12],lower_line[13],lower_line[14],lower_line[15]
+                };
             end
         endcase
     end
