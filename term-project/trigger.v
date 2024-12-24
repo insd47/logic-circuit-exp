@@ -13,7 +13,7 @@ always @(posedge clk or posedge rst) begin
         triggered <= 1'b0;
     end else begin
         prev_signal_in <= signal_in;
-        triggered <= prev_signal_in && !signal_in;
+        triggered <= !prev_signal_in && signal_in;
     end
 end
 

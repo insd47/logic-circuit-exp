@@ -348,6 +348,14 @@ module main(
 
             2'd3: begin // STATE_GAME_OVER
                 TEXT_UPPER = "GAME OVER       ";
+
+                // 장애물 표시
+                for(i=0; i<16; i=i+1) begin
+                    obs_val = get_obstacle(obstacle_map_flat, i);
+                    if(obs_val != 2'b00) begin
+                        lower_line[i] = get_char_for_obstacle_char(obs_val);
+                    end
+                end
                 
                 TEXT_LOWER = {
                     lower_line[0],lower_line[1],lower_line[2],lower_line[3],
