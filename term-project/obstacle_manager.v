@@ -57,13 +57,13 @@ module obstacle_manager(
                 // 장애물 생성
                 any_obs = 0;
                 // 기존 5~15번 칸 체크 → 수정: 10~15번 칸에 장애물이 있으면 새로 생성X
-                for(check=10; check<=15; check=check+1) begin
+                for(check=12; check<=15; check=check+1) begin
                     if(obstacles[check] != 2'b00)
                         any_obs = 1;
                 end
                 if(!any_obs) begin
-                    // 3/4 확률로 장애물 생성
-                    if(rand_val[1:0] != 2'b11) begin
+                    // 1/2 확률로 장애물 생성
+                    if(rand_val[1:0] != 2'b10) begin
                         obstacles[15] <= (rand_val[2]) ? 2'b01 : 2'b10;
                     end
                 end
