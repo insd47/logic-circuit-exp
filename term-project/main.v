@@ -254,6 +254,17 @@ module main(
     // 이전 상태 저장(상태 변화 시 LCD 갱신)
     reg [1:0] prev_state;
 
+    // shift_enable의 Rising Edge 검출
+    reg prev_shift_enable;
+    always @(posedge CLK or posedge RST) begin
+        if(RST)
+            prev_shift_enable <= 0;
+        else
+            prev_shift_enable <= shift_enable;
+    end
+
+    wire shift_enable_rise = (shift_enable && !prev_shift_enable);
+
     always @(posedge CLK or posedge RST) begin
         if(RST) begin
             prev_state <= 2'd0;
@@ -273,28 +284,9 @@ module main(
             //     즉, 장애물이 움직인 다음 갱신
             //     -> 간단히 하기 위해 한 cycle 뒤 enable_lcd = 1
             //        (Rising Edge 검출 필요)
-        end
-    end
 
-    // shift_enable의 Rising Edge 검출
-    reg prev_shift_enable;
-    always @(posedge CLK or posedge RST) begin
-        if(RST)
-            prev_shift_enable <= 0;
-        else
-            prev_shift_enable <= shift_enable;
-    end
-
-    wire shift_enable_rise = (shift_enable && !prev_shift_enable);
-
-    // enable_lcd: shift_enable 일어날 때도 1로 만들어 LCD 갱신
-    always @(posedge CLK or posedge RST) begin
-        if(RST) begin
-            // 이미 위에서 초기화 했으나, 안전을 위해
-        end else begin
             if(shift_enable_rise) begin
                 enable_lcd <= 1;
-            end
         end
     end
 
