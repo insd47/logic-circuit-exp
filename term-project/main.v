@@ -3,11 +3,13 @@ module main(
     input wire RST,
     input wire [9:0] Keypad,
     input wire KeypadHash,
+
     // Text LCD
     output wire TLCD_E,
     output wire TLCD_RS,
     output wire TLCD_RW,
     output wire [7:0] TLCD_DATA,
+
     // 7-Segment
     output wire AR_SEG_A,
     output wire AR_SEG_B,
@@ -16,63 +18,21 @@ module main(
     output wire AR_SEG_E,
     output wire AR_SEG_F,
     output wire AR_SEG_G,
-    output wire [7:0] AR_COM
+    output wire [7:0] AR_COM,
+
+    // Debug LED(예: jump_fw, game_over_fw)
+    output wire [3:0] LED,
+
+    // 사운드 출력을 위한 Piezo
+    output wire PIEZO
 );
 
-    // 상태 정의
-    localparam STATE_FONT_LOAD = 0;
-    localparam STATE_MAIN_MENU = 1;
-    localparam STATE_GAME      = 2;
-    localparam STATE_GAME_OVER = 3;
-
-    reg [1:0] cur_state, next_state;
-    reg [1:0] prev_state;
-
+    //---------------
+    // (1) 폰트 로더
+    //---------------
     wire font_loader_done;
     wire TLCD_E_font, TLCD_RS_font, TLCD_RW_font;
     wire [7:0] TLCD_DATA_font;
-
-    wire TLCD_E_text, TLCD_RS_text, TLCD_RW_text;
-    wire [7:0] TLCD_DATA_text;
-
-    reg [8*16-1:0] TEXT_UPPER;
-    reg [8*16-1:0] TEXT_LOWER;
-
-    // LCD ENABLE 제어
-    reg enable_lcd;
-    reg enable_lcd_delay_state;    // 상태 변화 후 다음 사이클에 enable_lcd를 1로 복귀하기 위한 딜레이
-    reg enable_lcd_delay_shift;    // shift_enable 변화 후 다음 사이클에 enable_lcd를 1로 복귀하기 위한 딜레이
-
-    integer i;
-    reg [7:0] upper_line[0:15];
-    reg [7:0] lower_line[0:15];
-    reg [1:0] obs_val;
-
-    function [1:0] get_obstacle;
-        input [31:0] flat;
-        input [3:0] idx;
-    begin
-        case (idx)
-            4'd0:  get_obstacle = flat[1:0];
-            4'd1:  get_obstacle = flat[3:2];
-            4'd2:  get_obstacle = flat[5:4];
-            4'd3:  get_obstacle = flat[7:6];
-            4'd4:  get_obstacle = flat[9:8];
-            4'd5:  get_obstacle = flat[11:10];
-            4'd6:  get_obstacle = flat[13:12];
-            4'd7:  get_obstacle = flat[15:14];
-            4'd8:  get_obstacle = flat[17:16];
-            4'd9:  get_obstacle = flat[19:18];
-            4'd10: get_obstacle = flat[21:20];
-            4'd11: get_obstacle = flat[23:22];
-            4'd12: get_obstacle = flat[25:24];
-            4'd13: get_obstacle = flat[27:26];
-            4'd14: get_obstacle = flat[29:28];
-            4'd15: get_obstacle = flat[31:30];
-            default: get_obstacle = 2'b00;
-        endcase
-    end
-    endfunction
 
     custom_font_loader font_loader (
         .RESETN(RST),
@@ -84,7 +44,17 @@ module main(
         .DONE(font_loader_done)
     );
 
-    tlcd_controller lcd_ctrl(
+    //---------------
+    // (2) LCD 제어부
+    //---------------
+    wire TLCD_E_text, TLCD_RS_text, TLCD_RW_text;
+    wire [7:0] TLCD_DATA_text;
+    reg enable_lcd;  // LCD 렌더링 트리거
+
+    reg [8*16-1:0] TEXT_UPPER;
+    reg [8*16-1:0] TEXT_LOWER;
+
+    tlcd_controller lcd_ctrl (
         .RESETN(RST),
         .CLK(CLK),
         .ENABLE(enable_lcd),
@@ -96,38 +66,42 @@ module main(
         .TEXT_STRING_LOWER(TEXT_LOWER)
     );
 
+    // 폰트 로더와 텍스트 LCD 중 어느 신호를 LCD에 연결할지 MUX
     assign TLCD_E    = font_loader_done ? TLCD_E_text    : TLCD_E_font;
     assign TLCD_RS   = font_loader_done ? TLCD_RS_text   : TLCD_RS_font;
     assign TLCD_RW   = font_loader_done ? TLCD_RW_text   : TLCD_RW_font;
     assign TLCD_DATA = font_loader_done ? TLCD_DATA_text : TLCD_DATA_font;
 
-    reg any_digit_input;
-    integer k;
-    always @(*) begin
-        any_digit_input = 1'b0;
-        for(k=0; k<10; k=k+1) begin
-            if(Keypad[k] == 1'b1)
-                any_digit_input = 1'b1;
-        end
-    end
 
-    wire trig_any_digit;
-    wire trig_hash;
+    //---------------
+    // (3) 입력 매니저
+    //---------------
+    wire jump_trigger;
+    wire force_game_over;
+    wire jump_fw;
+    wire force_game_over_fw;
 
-    trigger trig_digit (
-        .clk(CLK),
-        .rst(RST),
-        .signal_in(any_digit_input),
-        .triggered(trig_any_digit)
+    input_manager im (
+        .CLK(CLK),
+        .RST(RST),
+        .K(Keypad),
+        .KSHARP(KeypadHash),
+        .jump(jump_trigger),
+        .game_over(force_game_over),
+        .jump_fw(jump_fw),
+        .game_over_fw(force_game_over_fw)
     );
 
-    trigger trig_hash_in (
-        .clk(CLK),
-        .rst(RST),
-        .signal_in(KeypadHash),
-        .triggered(trig_hash)
-    );
+    // LED 출력(간단한 예)
+    // LED[0] = jump_fw, LED[1] = game_over_fw, 나머지는 예시로 0
+    assign LED[0] = jump_fw;
+    assign LED[1] = force_game_over_fw;
+    assign LED[2] = 1'b0;
+    assign LED[3] = 1'b0;
 
+    //---------------
+    // (4) LFSR, obstacle_manager
+    //---------------
     wire [15:0] rand_val;
     lfsr lfsr_inst (
         .CLK(CLK),
@@ -140,41 +114,44 @@ module main(
     wire [31:0] score;
     wire [31:0] obstacle_map_flat;
 
-    reg start_game;
+    //---------------
+    // (5) game_state_manager
+    //---------------
+    wire [1:0] cur_state;
+    wire start_game;
 
-    reg shift_enable;
-    reg [17:0] timer_cnt;
-    always @(posedge CLK or posedge RST) begin
-        if(RST) begin
-            timer_cnt <= 0;
-            shift_enable <= 0;
-        end else begin
-            if(timer_cnt < 200000) begin
-                timer_cnt <= timer_cnt + 1;
-                shift_enable <= 0;
-            end else begin
-                timer_cnt <= 0;
-                shift_enable <= 1;
-            end
-        end
-    end
+    game_state_manager gsm (
+        .CLK(CLK),
+        .RST(RST),
+        .font_loader_done(font_loader_done),
+        .jump_trigger(jump_trigger),
+        .force_game_over(force_game_over),
+        .om_game_over(om_game_over),
+        .cur_state(cur_state),
+        .start_game(start_game)
+    );
 
-    reg prev_shift_enable;
-    always @(posedge CLK or posedge RST) begin
-        if(RST) prev_shift_enable <= 0;
-        else prev_shift_enable <= shift_enable;
-    end
+    //---------------
+    // (6) counter (shift_enable 발생)
+    //---------------
+    wire shift_enable;
 
-    wire force_game_over_signal = (cur_state == STATE_GAME) ? trig_hash : 1'b0;
-    wire jump_trigger_signal = (cur_state == STATE_GAME && trig_any_digit);
+    counter cnt_inst (
+        .CLK(CLK),
+        .RST(RST),
+        .shift_enable(shift_enable)
+    );
 
+    //---------------
+    // (7) obstacle_manager
+    //---------------
     obstacle_manager om (
         .CLK(CLK),
         .RST(RST),
-        .shift_enable((cur_state == STATE_GAME) ? shift_enable : 1'b0),
-        .jump_trigger(jump_trigger_signal),
+        .shift_enable((cur_state == 2'd2) ? shift_enable : 1'b0), // STATE_GAME에서만 움직임
+        .jump_trigger((cur_state == 2'd2) ? jump_trigger : 1'b0),
         .start_game(start_game),
-        .force_game_over(force_game_over_signal),
+        .force_game_over((cur_state == 2'd2) ? force_game_over : 1'b0),
         .rand_val(rand_val),
         .game_over(om_game_over),
         .dino_on_ground(dino_on_ground),
@@ -182,12 +159,16 @@ module main(
         .obstacle_map_flat(obstacle_map_flat)
     );
 
+    //---------------
+    // (8) 7-Segment
+    //---------------
     wire [7:0] com_out;
     wire seg_a, seg_b, seg_c, seg_d, seg_e, seg_f, seg_g;
+
     seg_controller segc(
         .CLK(CLK),
         .RST(RST),
-        .BINARY_SCORE((cur_state == STATE_GAME || cur_state == STATE_GAME_OVER) ? score : 0),
+        .BINARY_SCORE((cur_state == 2'd2 || cur_state == 2'd3) ? score : 0),
         .Com(com_out),
         .AR_SEG_A(seg_a),
         .AR_SEG_B(seg_b),
@@ -207,54 +188,53 @@ module main(
     assign AR_SEG_F = seg_f;
     assign AR_SEG_G = seg_g;
 
-    always @(posedge CLK or posedge RST) begin
-        if(RST) begin
-            cur_state <= STATE_FONT_LOAD;
-            prev_state <= STATE_FONT_LOAD;
-        end else begin
-            prev_state <= cur_state;
-            cur_state <= next_state;
-        end
-    end
+    //---------------
+    // (9) 사운드 모듈
+    //---------------
+    // jump_trigger가 상승할 때마다(sound_enable)
+    // 0.2초간 4옥타브 미 출력
+    reg prev_jump;
+    wire sound_enable_rising = (jump_trigger && !prev_jump);
 
-    always @(*) begin
-        next_state = cur_state;
-        case(cur_state)
-            STATE_FONT_LOAD: begin
-                if(font_loader_done) next_state = STATE_MAIN_MENU;
-            end
-            STATE_MAIN_MENU: begin
-                if(trig_any_digit) next_state = STATE_GAME;
-            end
-            STATE_GAME: begin
-                if(om_game_over) next_state = STATE_GAME_OVER;
-            end
-            STATE_GAME_OVER: begin
-                if(trig_any_digit || trig_hash) next_state = STATE_GAME;
-            end
-        endcase
-    end
+    sound snd (
+        .CLK(CLK),
+        .RST(RST),
+        .sound_enable(sound_enable_rising),
+        .piezo_out(PIEZO)
+    );
 
     always @(posedge CLK or posedge RST) begin
-        if(RST) begin
-            start_game <= 0;
-        end else begin
-            start_game <= 0;
-            if((cur_state == STATE_MAIN_MENU && next_state == STATE_GAME) ||
-               (cur_state == STATE_GAME_OVER && next_state == STATE_GAME))
-                start_game <= 1;
-        end
+        if(RST) prev_jump <= 0;
+        else prev_jump <= jump_trigger;
     end
 
-    function [7:0] get_char_for_obstacle_char(input [1:0] obs_val);
+    //---------------
+    // LCD 표시 문자열 갱신 로직
+    //---------------
+    integer i;
+    reg [7:0] upper_line[0:15];
+    reg [7:0] lower_line[0:15];
+    reg [1:0] obs_val;
+
+    // obstacle_map_flat에서 특정 인덱스의 장애물(2비트) 읽는 함수
+    function [1:0] get_obstacle;
+        input [31:0] flat;
+        input [3:0] idx;
+    begin
+        get_obstacle = flat[ 2*idx +: 2 ];
+    end
+    endfunction
+
+    // 장애물 문자(2'b01, 2'b10)를 특정 LCD용 문자로 변환
+    function [7:0] get_char_for_obstacle_char(input [1:0] obs);
         begin
-            if(obs_val == 2'b00) get_char_for_obstacle_char = 8'h20; // space
-            else get_char_for_obstacle_char = 8'h04; // obstacle char
+            if(obs == 2'b00) get_char_for_obstacle_char = 8'h20; // space
+            else get_char_for_obstacle_char = 8'h04; // custom obstacle char
         end
     endfunction
 
-    // 공룡 걷기 모션 결정 로직
-    // score >> 1의 LSB를 확인하여 0이면 8'h00, 1이면 8'h01
+    // 공룡 문자 선택 함수
+    // score >> 1 의 LSB로 걷기 모션 결정(0이면 8'h00, 1이면 8'h01), 공중(점프)이면 8'h02
     function [7:0] get_dino_char(
         input dino_on_ground,
         input [31:0] sc
@@ -262,44 +242,96 @@ module main(
         begin
             if(dino_on_ground) begin
                 if(((sc >> 1) & 1) == 0)
-                    get_dino_char = 8'h00;
+                    get_dino_char = 8'h00; // 첫 걸음
                 else
-                    get_dino_char = 8'h01;
+                    get_dino_char = 8'h01; // 두 번째 걸음
             end else begin
-                // 점프 시 공룡 문자: 기존에 8'h02 사용
-                get_dino_char = 8'h02;
+                get_dino_char = 8'h02;     // 점프 모션
             end
         end
     endfunction
 
+    // 이전 상태 저장(상태 변화 시 LCD 갱신)
+    reg [1:0] prev_state;
+
+    always @(posedge CLK or posedge RST) begin
+        if(RST) begin
+            prev_state <= 2'd0;
+            enable_lcd <= 0;
+        end else begin
+            prev_state <= cur_state;
+
+            // 매 cycle 마다 기본은 enable_lcd = 0
+            // 아래 조건에 따라 1로 잠깐 세팅
+            enable_lcd <= 0;
+
+            // (1) 상태가 바뀌면 다음 cycle에 LCD 갱신 트리거
+            if(prev_state != cur_state) begin
+                enable_lcd <= 1;
+            end
+            // (2) shift_enable의 Rising Edge 시에도 화면 갱신
+            //     즉, 장애물이 움직인 다음 갱신
+            //     -> 간단히 하기 위해 한 cycle 뒤 enable_lcd = 1
+            //        (Rising Edge 검출 필요)
+        end
+    end
+
+    // shift_enable의 Rising Edge 검출
+    reg prev_shift_enable;
+    always @(posedge CLK or posedge RST) begin
+        if(RST)
+            prev_shift_enable <= 0;
+        else
+            prev_shift_enable <= shift_enable;
+    end
+
+    wire shift_enable_rise = (shift_enable && !prev_shift_enable);
+
+    // enable_lcd: shift_enable 일어날 때도 1로 만들어 LCD 갱신
+    always @(posedge CLK or posedge RST) begin
+        if(RST) begin
+            // 이미 위에서 초기화 했으나, 안전을 위해
+        end else begin
+            if(shift_enable_rise) begin
+                enable_lcd <= 1;
+            end
+        end
+    end
+
+    //---------------
+    // LCD 문자열 작성
+    //---------------
     always @(*) begin
+        // 기본값
         TEXT_UPPER = "                ";
         TEXT_LOWER = "                ";
 
+        for(i=0; i<16; i=i+1) begin
+            upper_line[i] = 8'h20;
+            lower_line[i] = 8'h20;
+        end
+
         case(cur_state)
-            STATE_FONT_LOAD: begin
-                TEXT_UPPER = "LOADING FONTS...  ";
+            2'd0: begin // STATE_FONT_LOAD
+                TEXT_UPPER = "LOADING FONTS... ";
                 TEXT_LOWER = "                ";
             end
-            STATE_MAIN_MENU: begin
-                TEXT_UPPER = "    PRESS ANY KEY";
-                TEXT_LOWER = {8'h00,"  TO START GAME"};
-            end
-            STATE_GAME: begin
-                for(i=0;i<16;i=i+1) begin
-                    upper_line[i] = 8'h20;
-                    lower_line[i] = 8'h20;
-                end
 
-                // 공룡 표시: 걷기 모션 적용
-                if(dino_on_ground) begin
+            2'd1: begin // STATE_MAIN_MENU
+                TEXT_UPPER = "   PRESS ANY KEY ";
+                TEXT_LOWER = {8'h00,"  TO START GAME"};
+                // 예: 8'h00(공룡 첫모양), "  TO START GAME"
+            end
+
+            2'd2: begin // STATE_GAME
+                // 공룡 표시
+                if(dino_on_ground)
                     lower_line[0] = get_dino_char(dino_on_ground, score);
-                end else begin
+                else
                     upper_line[0] = get_dino_char(dino_on_ground, score);
-                end
 
                 // 장애물 표시
-                for(i=0;i<16;i=i+1) begin
+                for(i=0; i<16; i=i+1) begin
                     obs_val = get_obstacle(obstacle_map_flat, i);
                     if(obs_val != 2'b00) begin
                         lower_line[i] = get_char_for_obstacle_char(obs_val);
@@ -320,42 +352,12 @@ module main(
                     lower_line[12],lower_line[13],lower_line[14],lower_line[15]
                 };
             end
-            STATE_GAME_OVER: begin
-                TEXT_UPPER = "GAME OVER       ";
-                TEXT_LOWER = {
-                    lower_line[0],lower_line[1],lower_line[2],lower_line[3],
-                    lower_line[4],lower_line[5],lower_line[6],lower_line[7],
-                    lower_line[8],lower_line[9],lower_line[10],lower_line[11],
-                    lower_line[12],lower_line[13],lower_line[14],lower_line[15]
-                };
+
+            2'd3: begin // STATE_GAME_OVER
+                TEXT_UPPER = "GAME OVER        ";
+                TEXT_LOWER = " PRESS ANY KEY/# ";
             end
         endcase
-    end
-
-    always @(posedge CLK or posedge RST) begin
-        if(RST) begin
-            enable_lcd <= 0;
-            enable_lcd_delay_state <= 0;
-            enable_lcd_delay_shift <= 0;
-        end else begin
-            // 상태 변화 감지
-            if(prev_state != cur_state) begin
-                enable_lcd <= 0;
-                enable_lcd_delay_state <= 1;
-            end else if(enable_lcd_delay_state) begin
-                enable_lcd <= 1;
-                enable_lcd_delay_state <= 0;
-            end
-
-            // shift_enable Rising Edge 감지
-            if(!prev_shift_enable && shift_enable) begin
-                enable_lcd <= 0;
-                enable_lcd_delay_shift <= 1;
-            end else if(enable_lcd_delay_shift) begin
-                enable_lcd <= 1;
-                enable_lcd_delay_shift <= 0;
-            end
-        end
     end
 
 endmodule

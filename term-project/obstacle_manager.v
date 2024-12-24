@@ -12,11 +12,15 @@ module obstacle_manager(
     output wire [31:0] obstacle_map_flat
 );
 
+    // 2비트로 장애물을 표현
+    // obstacles[i] == 2'b00 이면 없음, 2'b01 또는 2'b10 이면 장애물
     reg [1:0] obstacles[0:15];
     integer idx;
     integer check;
     reg any_obs;
-    reg [3:0] jump_cnt;
+
+    // 점프 카운터: 점프 중이면 4틱 유지 (3 -> 2 -> 1 -> 0 -> 착지)
+    reg [3:0] jump_cnt; 
 
     // 점프 요청 래치
     reg jump_latch;
@@ -52,21 +56,22 @@ module obstacle_manager(
 
                 // 장애물 생성
                 any_obs = 0;
-                for(check=5; check<=15; check=check+1) begin
+                // 기존 5~15번 칸 체크 → 수정: 10~15번 칸에 장애물이 있으면 새로 생성X
+                for(check=10; check<=15; check=check+1) begin
                     if(obstacles[check] != 2'b00)
                         any_obs = 1;
                 end
                 if(!any_obs) begin
+                    // 3/4 확률로 장애물 생성
                     if(rand_val[1:0] != 2'b11) begin
                         obstacles[15] <= (rand_val[2]) ? 2'b01 : 2'b10;
                     end
                 end
 
-                // 점프 상태 갱신
-                // 여기서 jump_trigger 대신 jump_latch를 확인
+                // 점프 상태 갱신 (점프 래치 확인)
                 if(jump_latch && dino_on_ground) begin
                     dino_on_ground <= 0;
-                    jump_cnt <= 2;
+                    jump_cnt <= 3;   // 4틱 유지
                     jump_latch <= 0; // 점프 반영 후 래치 초기화
                 end else if(!dino_on_ground) begin
                     if(jump_cnt > 0) jump_cnt <= jump_cnt - 1;
@@ -91,6 +96,7 @@ module obstacle_manager(
         end
     end
 
+    // obstacle map flatten
     genvar i;
     generate
         for(i=0; i<16; i=i+1) begin : FLATTEN
