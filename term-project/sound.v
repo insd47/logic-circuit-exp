@@ -9,7 +9,6 @@ module sound (
     localparam DIV_COUNT = 379;
     // 재생 시간(0.2초)
     localparam DURATION = 200000;
-4
     // 간단 상태기: IDLE → PLAYING
     reg [1:0] state;
     localparam IDLE = 2'd0,
