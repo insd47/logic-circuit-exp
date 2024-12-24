@@ -287,6 +287,7 @@ module main(
 
             if(shift_enable_rise) begin
                 enable_lcd <= 1;
+            end
         end
     end
 
